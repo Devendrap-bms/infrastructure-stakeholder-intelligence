@@ -1,0 +1,2 @@
+# Normalize line endings so Windows teammates do not create noisy diffs.
+* text=auto eol=lf

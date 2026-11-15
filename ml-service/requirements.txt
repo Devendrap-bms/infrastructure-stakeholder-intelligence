@@ -1,0 +1,8 @@
+# Direct dependencies of the ML service (versions verified on Windows 11, Python 3.14.6).
+# PyTorch is NOT listed here because it needs the official CUDA index.
+# Install it first, see SETUP_GUIDE.md:
+#   python -m pip install torch --index-url https://download.pytorch.org/whl/cu132
+fastapi==0.163.1
+uvicorn==0.54.0
+transformers==5.23.0
+numpy==2.5.4
