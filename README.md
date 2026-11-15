@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Knowledge-Driven Stakeholder Analysis and Risk Intelligence for Infrastructure Planning
 
-## Getting Started
+An AI-assisted decision-support platform for infrastructure planners. It is intended to analyse project documents, process multilingual citizen feedback (English, Telugu and Kannada, including Romanized text), connect concerns to infrastructure knowledge, retrieve historical evidence, analyse mitigation coverage and prioritise concerns for administrators.
 
-First, run the development server:
+It supports decisions. It does not approve or reject projects or declare legal compliance.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
+## Current status
+
+Phase 0 (environment and repository setup) is in progress. No application modules are implemented yet. See `docs/PROGRESS.md` for what has been verified.
+
+## Technology stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js (App Router), TypeScript, Tailwind CSS, shadcn/ui |
+| Application backend | Next.js Route Handlers |
+| Database and backend platform | Convex |
+| ML service | Python, PyTorch, Hugging Face Transformers, FastAPI |
+| Models (later phases) | `google-bert/bert-base-multilingual-cased`, `FacebookAI/xlm-roberta-base` |
+| Tooling | Bun, Biome, Git, GitHub |
+
+## Quick start
+
+Full instructions are in `docs/SETUP_GUIDE.md`. Exact verified versions are in `docs/ENVIRONMENT_VERSIONS.md`.
+
+Frontend (project root):
+
+```powershell
+bun install
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Convex (second terminal, project root):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```powershell
+bunx convex dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+ML service (third terminal, `ml-service` folder, virtual environment active):
 
-## Learn More
+```powershell
+python -m uvicorn app.main:app --reload
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Documentation
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `docs/PROGRESS.md`: development progress record
+- `docs/SETUP_GUIDE.md`: environment setup for team members
+- `docs/ENVIRONMENT_VERSIONS.md`: verified tool and package versions
+- `docs/REPOSITORY_STRUCTURE.md`: folder layout
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Branches
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`main` is reserved for the final integrated application. Work is integrated into `develop` through Pull Requests.
