@@ -44,10 +44,22 @@ python -m uvicorn app.main:app --reload
 
 ## Documentation
 
-- `docs/PROGRESS.md`: development progress record
-- `docs/SETUP_GUIDE.md`: environment setup for team members
-- `docs/ENVIRONMENT_VERSIONS.md`: verified tool and package versions
-- `docs/REPOSITORY_STRUCTURE.md`: folder layout
+Core documentation:
+
+- `CLAUDE.md`: Development instructions, stack, commands
+- `README.md`: This file - project overview and quick start
+
+Phase documentation:
+
+- `docs/IMPLEMENTATION_ROADMAP.md`: Complete phases, MVP scope, dependencies
+- `docs/TEAM_TASK_ASSIGNMENTS.md`: Three developers' responsibilities, task breakdown
+- `docs/SHARED_CONTRACTS.md`: API contracts, data structures, integration patterns
+- `docs/DEVELOPMENT_PROGRESS.md`: Ongoing progress tracking by phase
+- `docs/DECISION_LOG.md`: Architectural decisions, unresolved questions, blockers
+- `docs/PROGRESS.md`: Phase 0 verification record
+- `docs/SETUP_GUIDE.md`: Environment setup for team members
+- `docs/ENVIRONMENT_VERSIONS.md`: Verified tool and package versions
+- `docs/REPOSITORY_STRUCTURE.md`: Folder layout
 
 ## Branches
 

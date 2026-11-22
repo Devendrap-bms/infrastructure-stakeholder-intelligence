@@ -89,12 +89,19 @@ Open http://127.0.0.1:8000/health. Leave the environment with `deactivate`.
 
 ## Known issue: Smart App Control
 
-On Windows 11 machines with Smart App Control turned On, importing PyTorch failed with `WinError 4551: An Application Control policy has blocked this file`. On the first developer's personal laptop it was resolved by turning Smart App Control Off (Windows Security, App and browser control, Smart App Control settings). Windows Defender stays on. This reduces protection, so only do it on your own device and install software from official sources only.
+On Windows 11 machines with Smart App Control turned On, importing PyTorch may fail with `WinError 4551: An Application Control policy has blocked this file`. Diagnostic-first approach:
+
+1. **Verify the specific error**: Run `.\.venv\Scripts\python.exe -c "import torch; print(torch.__version__)"` and confirm the error is exactly WinError 4551
+2. **Document the environment**: Note Windows version, Smart App Control state, Python/PyTorch versions
+3. **Evaluate workaround**: If confirmed as Smart App Control related, consider turning it off (Windows Security → App and browser control → Smart App Control settings) as a last resort
+4. **Apply only on personal devices**: Only disable on your own device; install software from official sources only; Windows Defender remains active
+
+On the first developer's personal laptop, the issue was resolved by turning Smart App Control Off. This reduces protection, so only apply this workaround after confirming the specific error on each machine.
 
 ## Known limitations
 
-- Not yet reproduced by a second team member.
-- The Convex deployment sharing model for four developers is undecided.
+- Not yet reproduced by a second team member — coordinator confirmation required to identify which team member's setup remains unverified.
+- The Convex deployment sharing model for three developers is undecided.
 - `bun run build` (production build) has not been run.
 - Convex free-tier limits have not been checked against the current pricing page.
 - No models have been downloaded or loaded; `models_loaded` is false.

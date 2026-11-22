@@ -51,8 +51,8 @@ At the time of the last check: README.md (modified), docs/ (new) and a one-line 
 ## Remaining issues
 - Smart App Control blocked PyTorch DLLs (WinError 4551). Turned Off on this personal laptop; Defender still on. Teammates on Windows 11 may hit it; documented in SETUP_GUIDE.md.
 - Setup has not been reproduced by a second team member.
-- How four developers share or separate Convex dev deployments is undecided.
-- Convex free-tier limits not yet checked against the current pricing page (before Phase 14).
+- How three developers share or separate Convex dev deployments is undecided.
+- Convex free-tier limits not yet checked against the current pricing page (before Phase 9).
 - Bun blocked esbuild postinstall; left unapproved because nothing failed.
 - Installer notices not acted on: TypeScript 7.0.2 and Tailwind 4.3.5 available; staying on installed versions pending a compatibility check.
 - Authentication provider for Module 1 is unspecified in the report; decide in Phase 1 with team approval.
