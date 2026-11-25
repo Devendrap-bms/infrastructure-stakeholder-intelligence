@@ -1,24 +1,38 @@
 "use client";
+import Link from "next/link";
+import { useAuthClient } from "@/hooks/use-auth-client";
 
-import { useQuery } from "convex/react";
-import { Button } from "@/components/ui/button";
-import { api } from "../../convex/_generated/api";
+export default function HomePage() {
+  const { isAuthenticated } = useAuthClient();
 
-export default function Home() {
-  // Temporary connection test (Phase 0). Replaced by real screens in Phase 12.
-  const result = useQuery(api.health.ping);
+  if (isAuthenticated) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-8">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <p className="text-muted-foreground">You are signed in.</p>
+        <p className="text-sm text-muted-foreground">Navigate to projects...</p>
+      </main>
+    );
+  }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-8">
-      <Button>shadcn Button works</Button>
-      <p className="rounded-md bg-blue-500 px-4 py-2 text-white">
-        Tailwind works
-      </p>
-      <p className="rounded-md border px-4 py-2 font-mono text-sm">
-        {result === undefined
-          ? "Convex: loading..."
-          : `Convex: ${JSON.stringify(result)}`}
-      </p>
+    <main className="flex min-h-screen items-center justify-center">
+      <div className="space-y-4 text-center">
+        <h1 className="text-2xl font-bold">
+          Infrastructure Stakeholder Intelligence
+        </h1>
+        <p className="text-muted-foreground">
+          Knowledge-driven stakeholder analysis and risk intelligence
+        </p>
+        <div className="flex gap-4 justify-center">
+          <Link href="/auth/login" className="border p-2 rounded">
+            Login
+          </Link>
+          <Link href="/auth/signup" className="border p-2 rounded">
+            Sign Up
+          </Link>
+        </div>
+      </div>
     </main>
   );
 }
