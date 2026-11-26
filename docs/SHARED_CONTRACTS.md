@@ -1,8 +1,8 @@
 # Shared Contracts
 
 **Project:** Knowledge-Driven Stakeholder Analysis and Risk Intelligence for Infrastructure Planning
-**Last Updated:** 2026-11-22
-**Status:** Version 0.1 (Phase 0 - Initial, to be updated per phase)
+**Last Updated:** 2026-11-26
+**Status:** Version 1.0 (Prompts 4-6 implemented, Prompts 7-9 pending)
 **Version Control:** Increment on breaking changes
 
 ---
@@ -50,20 +50,33 @@ These contracts enable parallel development with mock services and type safety.
   _id: Id<"documents">
   projectId: Id<"projects">      // Reference to project
   fileName: string;
-  fileType: "pdf" | "txt" | "doc" | "docx";
-  fileSize: number;               // Bytes
-  content?: string;               // Extracted text (optional, for small docs)
-  storageRef?: string;            // Convex file storage reference (for large docs)
-  language: "en" | "te" | "te-Latn" | "kn" | "kn-Latn";  // Primary language detected by ML
-  uploadedBy: string;             // User identifier (email or Convex user ID)
+  mimeType: string;               // Actual file format (e.g., "application/pdf")
+  documentType: "DPR" | "EIA" | "ESIA" | "EMP" | "SIA" | "feasibility_report" | "public_hearing_record";  // Document category
+  fileSize: number;               // Bytes (validated from actual storage metadata)
+  storageId: string;              // Convex file storage reference (required)
+  uploadStatus: "pending" | "completed" | "failed";
+  processingStatus: "pending" | "processing" | "completed" | "failed";
+  uploadedBy: string;             // User identifier (authId from Better Auth)
   uploadedAt: Date;
+  updatedAt: Date;
+  downloadCount: number;
+  provenance: string;             // Upload source/purpose
   metadata: {
     pages?: number;
     author?: string;
     title?: string;
+    description?: string;
   };
 }
 ```
+
+**Field Clarifications:**
+
+- **`mimeType`**: The actual MIME type of the uploaded file (e.g., "application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"). This is **file format**, not document type.
+
+- **`documentType`**: The business/categorical classification of the document (DPR, EIA, ESIA, EMP, SIA, feasibility_report, public_hearing_record). This indicates what kind of document it is in the planning context.
+
+**Do NOT use `fileType` as a redundant field** - `mimeType` covers file format, `documentType` covers document category.
 
 #### `citizen_feedback`
 ```typescript
@@ -156,12 +169,118 @@ These contracts enable parallel development with mock services and type safety.
 }
 ```
 
+#### `graph_entities` (Phase 4)
+```typescript
+{
+  _id: Id<"graph_entities">
+  projectId: Id<"projects">      // Reference to project
+  entityType: "activity" | "stakeholder" | "location" | "receptor" | "infrastructure_type" | "impact" | "mitigation";
+  name: string;                   // Entity name
+  description?: string;           // Optional description
+  createdAt: Date;
+  createdBy: string;              // authId of creator
+}
+```
+
+#### `graph_relationships` (Phase 4)
+```typescript
+{
+  _id: Id<"graph_relationships">
+  projectId: Id<"projects">      // Reference to project
+  sourceType: "entity" | "project" | "historical_case";
+  sourceId: Id<"graph_entities"> | Id<"projects"> | Id<"historical_evidence">;
+  targetType: "entity" | "project" | "historical_case";
+  targetId: Id<"graph_entities"> | Id<"projects"> | Id<"historical_evidence">;
+  relationshipType: "HAS_ACTIVITY" | "LOCATED_IN" | "AFFECTS" | "MAY_IMPACT" | "SUPPORTED_BY" | "RELATED_TO" | "ADDRESSES";
+  evidenceRef: Id<"documents"> | Id<"citizen_feedback"> | Id<"historical_evidence">;  // Evidence source
+  sourcePassage?: string;           // Excerpt/paragraph reference in evidence
+  evidenceType: "verified_fact" | "reported_concern" | "inferred_relationship" | "unverified_hypothesis";
+  confidence?: number;            // 0-1 confidence for inferred relationships
+  createdBy: string;                // authId of creator
+  createdAt: Date;
+}
+```
+
+**Source/Target Types:**
+- `entity`: A graph entity (activity, stakeholder, location, receptor, infrastructure_type, impact, mitigation)
+- `project`: A project record - enables `Project HAS_ACTIVITY Activity` and `Project RELATED_TO HistoricalCase`
+- `historical_case`: A historical_evidence record - enables `Project RELATED_TO HistoricalCase`
+
+**Evidence Assertion Types:**
+- `verified_fact`: Documented evidence (from documents or verified feedback)
+- `reported_concern`: Citizen concern that raises the issue
+- `inferred_relationship`: Analyst or ML inference (marked as inference, not fact)
+- `unverified_hypothesis`: Speculative connection, not yet validated
+
+**Confidence:** Values must be in range [0, 1]. Not a substitute for verified facts.
+
 **Owner:** Dev 1 (Coordinator)
 **Validation:** Run `bunx convex dev` to generate TypeScript types
 
 ---
 
-## 2. ML Service API Contracts
+## 3. Knowledge Graph API (Convex Functions)
+
+**Implemented:** Prompts 4-6 complete (November 2026)
+**Owner:** Dev 1 (Coordinator)
+
+### 3.1 Entity Management
+
+| Function | Type | Args | Description |
+|----------|------|------|-------------|
+| `createEntity` | mutation | `projectId, entityType, name, description?` | Creates a new graph entity |
+| `getEntity` | query | `entityId` | Gets entity with project access check |
+| `listProjectEntities` | query | `projectId, entityType?` | Lists all entities in a project |
+| `deleteEntity` | mutation | `entityId` | Deletes entity and related relationships (owner only) |
+
+**Entity Types:** `activity`, `stakeholder`, `location`, `receptor`, `infrastructure_type`, `impact`, `mitigation`
+
+### 3.2 Relationship Management
+
+| Function | Type | Args | Description |
+|----------|------|------|-------------|
+| `createRelationship` | mutation | `projectId, sourceType, sourceId, targetType, targetId, relationshipType, documentId?, feedbackId?, evidenceId?, sourcePassage?, evidenceType, confidence?` | Creates a relationship with evidence provenance |
+| `getEntityRelationships` | query | `entityId, includeEvidence?` | Gets inbound/outbound relationships for an entity |
+| `getEvidenceForRelationship` | query | `relationshipId` | Gets relationship with its evidence |
+| `findEntitiesByEvidence` | query | `projectId, documentId?, feedbackId?, evidenceId?` | Finds entities linked to specific evidence |
+| `deleteRelationship` | mutation | `relationshipId` | Deletes a relationship (owner only) |
+
+**Relationship Types:** `HAS_ACTIVITY`, `LOCATED_IN`, `AFFECTS`, `MAY_IMPACT`, `SUPPORTED_BY`, `RELATED_TO`, `ADDRESSES`
+
+**Evidence Types:** `verified_fact`, `reported_concern`, `inferred_relationship`, `unverified_hypothesis`
+
+**Type/ID Validation:**
+- `sourceType: "entity"` → sourceId must exist in `graph_entities`
+- `sourceType: "project"` → sourceId must exist in `projects` (owner check)
+- `sourceType: "historical_case"` → sourceId must exist in `historical_evidence` (global)
+- Same validation for target
+
+### 3.3 Impact Analysis
+
+| Function | Type | Args | Description |
+|----------|------|------|-------------|
+| `getImpactTrace` | query | `projectId, impactId` | Traces impacts: what affects them, what supports them |
+| `getProjectActivities` | query | `projectId` | Gets activities linked to project (HAS_ACTIVITY) |
+| `getHistoricalCases` | query | `projectId` | Gets historical cases related to project (RELATED_TO) |
+
+### 3.4 Access Control
+
+- All functions require authentication
+- Project-level access: owner or member
+- Entity operations require project membership
+- Relationship creation validates source/target exist and are accessible
+- Historical evidence is global (not project-scoped)
+
+### 3.5 Validation Rules
+
+1. **Confidence:** Must be in range [0, 1] for inferred relationships
+2. **Type/ID Mismatch:** Explicit table lookups reject mismatched combinations
+3. **Cross-project access:** Source entities cannot belong to other projects
+4. **Evidence provenance:** All relationships link to document, feedback, or historical evidence
+
+---
+
+## 4. ML Service API Contracts
 
 **Owner:** Dev 2 (Akshay)
 
@@ -485,7 +604,10 @@ export const mlClient = new MLClient(process.env.NEXT_PUBLIC_ML_SERVICE_URL);
 | Version | Date | Changes | Author |
 |---------|------|---------|--------|
 | 0.1 | 2026-11-22 | Initial: Phase 0 data models, ML API shapes, Route Handler structure | Dev 1 |
-| 1.0 | TBD | Phase 1-7: Full contracts, typed clients, error handling | All |
+| 1.0 | 2026-11-26 | Prompts 4-6: Auth, Documents, Feedback, Knowledge Graph APIs | Dev 1 |
+| 2.0 | TBD | Prompt 7: Risk Analysis Engine, Mitigation Prioritisation | Dev 1 |
+| 3.0 | TBD | Prompt 8: ML Service Integration, Model APIs | Dev 2 |
+| 4.0 | TBD | Prompt 9: Full Testing, E2E, Production Hardening | All |
 
 ---
 

@@ -9,8 +9,12 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as citizen_feedback from "../citizen_feedback.js";
+import type * as documents from "../documents.js";
+import type * as graph from "../graph.js";
 import type * as health from "../health.js";
 import type * as http from "../http.js";
+import type * as projects from "../projects.js";
 import type * as users from "../users.js";
 
 import type {
@@ -21,8 +25,12 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  citizen_feedback: typeof citizen_feedback;
+  documents: typeof documents;
+  graph: typeof graph;
   health: typeof health;
   http: typeof http;
+  projects: typeof projects;
   users: typeof users;
 }>;
 
