@@ -21,79 +21,38 @@ export default defineSchema({
     .index("email", ["email"])
     .index("authId", ["authId"]),
 
-  // Better Auth session table
-  session: defineTable({
-    expiresAt: v.number(),
-    token: v.string(),
+  // Project scope table
+  projects: defineTable({
+    name: v.string(),
+    description: v.string(),
+    location: v.object({
+      lat: v.number(),
+      lng: v.number(),
+      address: v.optional(v.string()),
+    }),
+    startDate: v.number(),
+    expectedEndDate: v.union(v.null(), v.number()),
+    status: v.union(
+      v.literal("planning"),
+      v.literal("active"),
+      v.literal("completed"),
+      v.literal("cancelled"),
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
-    ipAddress: v.optional(v.union(v.null(), v.string())),
-    userAgent: v.optional(v.union(v.null(), v.string())),
+    ownerId: v.string(),
+  })
+    .index("by_status", ["status"])
+    .index("by_createdAt", ["createdAt"])
+    .index("by_owner", ["ownerId"]),
+
+  // Project membership table
+  project_members: defineTable({
+    projectId: v.id("projects"),
     userId: v.string(),
+    role: v.union(v.literal("owner"), v.literal("editor"), v.literal("viewer")),
+    joinedAt: v.number(),
   })
-    .index("expiresAt", ["expiresAt"])
-    .index("expiresAt_userId", ["expiresAt", "userId"])
-    .index("token", ["token"])
-    .index("userId", ["userId"]),
-
-  // Better Auth account table (for OAuth)
-  account: defineTable({
-    accountId: v.string(),
-    providerId: v.string(),
-    userId: v.string(),
-    accessToken: v.optional(v.union(v.null(), v.string())),
-    refreshToken: v.optional(v.union(v.null(), v.string())),
-    idToken: v.optional(v.union(v.null(), v.string())),
-    accessTokenExpiresAt: v.optional(v.union(v.null(), v.number())),
-    refreshTokenExpiresAt: v.optional(v.union(v.null(), v.number())),
-    scope: v.optional(v.union(v.null(), v.string())),
-    password: v.optional(v.union(v.null(), v.string())),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("accountId", ["accountId"])
-    .index("accountId_providerId", ["accountId", "providerId"])
-    .index("accountId_providerId_userId", ["accountId", "providerId", "userId"])
-    .index("providerId_userId", ["providerId", "userId"])
-    .index("userId", ["userId"]),
-
-  // Better Auth verification table
-  verification: defineTable({
-    identifier: v.string(),
-    value: v.string(),
-    expiresAt: v.number(),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("expiresAt", ["expiresAt"])
-    .index("identifier", ["identifier"]),
-
-  // Better Auth twoFactor table
-  twoFactor: defineTable({
-    secret: v.string(),
-    backupCodes: v.string(),
-    userId: v.string(),
-    verified: v.optional(v.union(v.null(), v.boolean())),
-    failedVerificationCount: v.optional(v.union(v.null(), v.number())),
-    lockedUntil: v.optional(v.union(v.null(), v.number())),
-  }).index("userId", ["userId"]),
-
-  // Better Auth jwks table
-  jwks: defineTable({
-    publicKey: v.string(),
-    privateKey: v.string(),
-    createdAt: v.number(),
-    expiresAt: v.optional(v.union(v.null(), v.number())),
-    alg: v.optional(v.union(v.null(), v.string())),
-    crv: v.optional(v.union(v.null(), v.string())),
-  }),
-
-  // Better Auth rateLimit table
-  rateLimit: defineTable({
-    key: v.string(),
-    count: v.number(),
-    lastRequest: v.number(),
-  })
-    .index("key", ["key"])
-    .index("lastRequest", ["lastRequest"]),
+    .index("project_user", ["projectId", "userId"])
+    .index("user_projects", ["userId", "projectId"]),
 });
