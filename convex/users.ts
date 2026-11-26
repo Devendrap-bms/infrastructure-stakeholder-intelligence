@@ -16,7 +16,7 @@ export const assignRole = mutation({
 
     const currentUser = await ctx.db
       .query("user")
-      .withIndex("email", (q) => q.eq("email", identity.email as string))
+      .withIndex("authId", (q) => q.eq("authId", identity.subject as string))
       .first();
 
     if (!currentUser || currentUser.role !== "admin") {
