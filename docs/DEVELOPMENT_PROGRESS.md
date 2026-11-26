@@ -187,11 +187,11 @@ The application `user` table includes:
 - ✅ Production build succeeds
 - ⏳ Manual browser testing required:
   - Signup flow with new email
-  - Login flow with existing credentials
-  - Session persistence after page refresh
-  - Logout clears authentication state
-  - Role assignment remains admin-protected
-  - Account deletion removes application profile
+  - ✅ **Login flow:** Tested - redirects to `/` after successful signin
+  - ✅ **Session persistence:** Tested - verified via `useSession()` hook
+  - ❌ Logout: Not tested
+  - ❓ Account deletion: Pending verification
+  - ❓ Role protection: Pending verification
 
 ### Files Modified
 - `src/hooks/use-auth-client.tsx` - Client auth state synchronization
