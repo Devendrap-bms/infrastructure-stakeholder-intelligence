@@ -63,13 +63,13 @@ export const getUserWithRole = query({
 
     const user = await ctx.db
       .query("user")
-      .withIndex("email", (q) => q.eq("email", identity.email as string))
+      .withIndex("authId", (q) => q.eq("authId", identity.subject as string))
       .first();
 
     if (!user) return null;
 
     return {
-      email: identity.email,
+      email: user.email,
       subject: identity.subject,
       role: user.role || "analyst",
     };
