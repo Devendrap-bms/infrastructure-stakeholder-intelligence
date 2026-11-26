@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
+import { authComponent } from "./auth";
 
 export const assignRole = mutation({
   args: {
@@ -11,12 +12,13 @@ export const assignRole = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    // Use safeGetAuthUser for proper session validation
+    const betterAuthUser = await authComponent.safeGetAuthUser(ctx);
+    if (!betterAuthUser) throw new Error("Not authenticated");
 
     const currentUser = await ctx.db
       .query("user")
-      .withIndex("authId", (q) => q.eq("authId", identity.subject as string))
+      .withIndex("authId", (q) => q.eq("authId", betterAuthUser._id as string))
       .first();
 
     if (!currentUser || currentUser.role !== "admin") {

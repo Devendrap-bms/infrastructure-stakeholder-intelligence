@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { authComponent } from "./auth";
 
 // Helper type for application user
 type AppUser = {
@@ -14,26 +15,22 @@ type AppUser = {
 };
 
 // Get current application user from Better Auth
-// Uses identity.subject which contains the Better Auth user _id
-// Maps to application user by querying the user table via authId index
+// Uses authComponent.safeGetAuthUser() to validate session and get authId,
+// then maps to application user via authId index
 async function getCurrentAppUser(ctx: unknown): Promise<AppUser | null> {
   const db = (ctx as any).db;
-  const auth = (ctx as any).auth;
 
-  const identity = await auth.getUserIdentity();
-  if (!identity) return null;
+  // Get the Better Auth user (validates session expiration)
+  const betterAuthUser = await authComponent.safeGetAuthUser(ctx as any);
+  if (!betterAuthUser) return null;
 
-  // Validate session is not expired - use .get() for direct _id lookup
-  const session = await db.get(identity.sessionId as string);
-
-  if (!session || session.expiresAt < Date.now()) return null;
-
-  // identity.subject contains the Better Auth user _id
-  // which equals the user.authId in our schema
+  // Map to application user via authId index
+  // betterAuthUser._id is the Better Auth user's internal ID
+  // which equals user.authId in our app schema
   const user = await db
     .query("user")
     .withIndex("authId", (q: { eq: (key: string, value: string) => unknown }) =>
-      q.eq("authId", identity.subject as string),
+      q.eq("authId", betterAuthUser._id as string),
     )
     .first();
 
@@ -270,7 +267,7 @@ export const addProjectMember = mutation({
   args: {
     projectId: v.id("projects"),
     userId: v.string(),
-    role: v.union(v.literal("owner"), v.literal("editor"), v.literal("viewer")),
+    role: v.union(v.literal("editor"), v.literal("viewer")),
   },
   handler: async (ctx, args) => {
     const currentUser = await checkUserAuthorized(ctx);
@@ -371,7 +368,7 @@ export const updateProjectMemberRole = mutation({
   args: {
     projectId: v.id("projects"),
     userId: v.string(),
-    role: v.union(v.literal("owner"), v.literal("editor"), v.literal("viewer")),
+    role: v.union(v.literal("editor"), v.literal("viewer")),
   },
   handler: async (ctx, args) => {
     const currentUser = await checkUserAuthorized(ctx);

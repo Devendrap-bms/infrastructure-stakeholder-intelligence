@@ -58,19 +58,20 @@ export function createAuth(ctx: GenericCtx<DataModel>) {
 export const getUserWithRole = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return null;
+    // Use safeGetAuthUser for proper session validation
+    const betterAuthUser = await authComponent.safeGetAuthUser(ctx);
+    if (!betterAuthUser) return null;
 
     const user = await ctx.db
       .query("user")
-      .withIndex("authId", (q) => q.eq("authId", identity.subject as string))
+      .withIndex("authId", (q) => q.eq("authId", betterAuthUser._id as string))
       .first();
 
     if (!user) return null;
 
     return {
       email: user.email,
-      subject: identity.subject,
+      subject: betterAuthUser._id as string,
       role: user.role || "analyst",
     };
   },
