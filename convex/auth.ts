@@ -9,8 +9,8 @@
  */
 
 import { convex } from "@convex-dev/better-auth/plugins";
-import authConfig from "./auth.config";
 import { betterAuth, type DBFieldType } from "better-auth";
+import authConfig from "./auth.config";
 
 // Email/password configuration
 const emailConfig = {
@@ -32,7 +32,10 @@ const userConfig = {
 // ctx parameter receives Convex context with database adapter
 export function createAuth(ctx: any) {
   return betterAuth({
-    baseURL: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_CONVEX_SITE_URL || "http://localhost:3000",
+    baseURL:
+      process.env.BETTER_AUTH_URL ||
+      process.env.NEXT_PUBLIC_CONVEX_SITE_URL ||
+      "http://localhost:3000",
     database: ctx,
     emailAndPassword: emailConfig,
     user: userConfig,

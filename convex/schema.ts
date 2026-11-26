@@ -80,8 +80,7 @@ export default defineSchema({
     verified: v.optional(v.union(v.null(), v.boolean())),
     failedVerificationCount: v.optional(v.union(v.null(), v.number())),
     lockedUntil: v.optional(v.union(v.null(), v.number())),
-  })
-    .index("userId", ["userId"]),
+  }).index("userId", ["userId"]),
 
   // Better Auth jwks table
   jwks: defineTable({

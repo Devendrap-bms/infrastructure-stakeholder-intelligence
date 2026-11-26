@@ -25,7 +25,11 @@ export const getUserWithRole = query({
 export const assignRole = mutation({
   args: {
     userId: v.id("user"),
-    role: v.union(v.literal("analyst"), v.literal("planner"), v.literal("admin")),
+    role: v.union(
+      v.literal("analyst"),
+      v.literal("planner"),
+      v.literal("admin"),
+    ),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
