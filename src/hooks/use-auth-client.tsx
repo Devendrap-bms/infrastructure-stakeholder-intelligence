@@ -38,10 +38,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(
     async (email: string, password: string, signUp = false) => {
-      const result = await (authClient as any).signUp.emailAndPassword({
-        email,
-        password,
-      });
+      const result = signUp
+        ? await authClient.signUp.email({
+            email,
+            password,
+            name: email.split("@")[0],
+          })
+        : await authClient.signIn.email({
+            email,
+            password,
+          });
 
       if (result.error) {
         throw new Error(result.error.message || "Sign in failed");
