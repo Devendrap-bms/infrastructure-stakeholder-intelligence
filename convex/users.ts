@@ -1,26 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
-
-export const getUserWithRole = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return null;
-
-    const user = await ctx.db
-      .query("user")
-      .filter((u) => u.email === identity.email)
-      .first();
-
-    if (!user) return null;
-
-    return {
-      email: identity.email,
-      subject: identity.subject,
-      role: user.role || "analyst",
-    };
-  },
-});
+import { mutation } from "./_generated/server";
 
 export const assignRole = mutation({
   args: {
@@ -37,7 +16,7 @@ export const assignRole = mutation({
 
     const currentUser = await ctx.db
       .query("user")
-      .filter((u) => u.email === identity.email)
+      .withIndex("email", (q) => q.eq("email", identity.email as string))
       .first();
 
     if (!currentUser || currentUser.role !== "admin") {

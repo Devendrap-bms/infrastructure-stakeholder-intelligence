@@ -1,10 +1,8 @@
-import { createClient } from "@convex-dev/better-auth";
 import { httpRouter } from "convex/server";
-import { components } from "./_generated/api";
-import { createAuth } from "./auth.js";
+import { authComponent, createAuth } from "./auth";
 
 const http = httpRouter();
-const auth = createClient(components.betterAuth, { verbose: true });
-auth.registerRoutes(http, createAuth);
+
+authComponent.registerRoutes(http, createAuth);
 
 export default http;

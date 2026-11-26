@@ -2,28 +2,23 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-  // Better Auth user table
+  // App-level user profiles with role-based access control
+  // Linked to Better Auth user via authId
   user: defineTable({
+    authId: v.string(),
     name: v.string(),
     email: v.string(),
-    emailVerified: v.boolean(),
-    image: v.optional(v.union(v.null(), v.string())),
+    role: v.union(v.literal("analyst"), v.literal("planner"), v.literal("admin")),
+    verificationStatus: v.union(
+      v.literal("unverified"),
+      v.literal("verified"),
+    ),
+    isBlocked: v.boolean(),
+    registrationCompleted: v.boolean(),
     createdAt: v.number(),
-    updatedAt: v.number(),
-    twoFactorEnabled: v.optional(v.union(v.null(), v.boolean())),
-    isAnonymous: v.optional(v.union(v.null(), v.boolean())),
-    username: v.optional(v.union(v.null(), v.string())),
-    displayUsername: v.optional(v.union(v.null(), v.string())),
-    phoneNumber: v.optional(v.union(v.null(), v.string())),
-    phoneNumberVerified: v.optional(v.union(v.null(), v.boolean())),
-    role: v.optional(v.union(v.null(), v.string())),
-    userId: v.optional(v.union(v.null(), v.string())),
   })
-    .index("email_name", ["email", "name"])
-    .index("name", ["name"])
-    .index("userId", ["userId"])
-    .index("username", ["username"])
-    .index("phoneNumber", ["phoneNumber"]),
+    .index("email", ["email"])
+    .index("authId", ["authId"]),
 
   // Better Auth session table
   session: defineTable({
