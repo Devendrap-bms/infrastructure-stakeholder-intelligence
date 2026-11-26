@@ -8,11 +8,12 @@ export default defineSchema({
     authId: v.string(),
     name: v.string(),
     email: v.string(),
-    role: v.union(v.literal("analyst"), v.literal("planner"), v.literal("admin")),
-    verificationStatus: v.union(
-      v.literal("unverified"),
-      v.literal("verified"),
+    role: v.union(
+      v.literal("analyst"),
+      v.literal("planner"),
+      v.literal("admin"),
     ),
+    verificationStatus: v.union(v.literal("unverified"), v.literal("verified")),
     isBlocked: v.boolean(),
     registrationCompleted: v.boolean(),
     createdAt: v.number(),

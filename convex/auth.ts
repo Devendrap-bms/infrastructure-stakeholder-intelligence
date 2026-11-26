@@ -1,4 +1,8 @@
-import { createClient, type AuthFunctions, type GenericCtx } from "@convex-dev/better-auth";
+import {
+  type AuthFunctions,
+  createClient,
+  type GenericCtx,
+} from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
 import { betterAuth } from "better-auth/minimal";
 import { components, internal } from "./_generated/api";
@@ -47,9 +51,7 @@ export function createAuth(ctx: GenericCtx<DataModel>) {
       enabled: true,
       requireEmailVerification: false,
     },
-    plugins: [
-      convex({ authConfig }),
-    ],
+    plugins: [convex({ authConfig })],
   });
 }
 
