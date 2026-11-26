@@ -84,6 +84,7 @@ a503913 chore: initial commit
 | Smart App Control blocks PyTorch (Windows) | Documented | All Windows devs | Diagnostic-first: verify WinError 4551, document error/environment, evaluate turning off Smart App Control as last resort on personal devices only |
 | Convex deployment sharing model undecided | Open | Dev 1 | Decide in Phase 1 kickoff |
 | Authentication provider undecided | Open | Dev 1 | Evaluate in Phase 1 kickoff |
+| Better Auth HTTP routes returning 404 | Blocked | Dev 1 | Routes registered but not responding - infrastructure/routing issue |
 
 ### Medium Priority
 
