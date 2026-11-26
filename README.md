@@ -6,7 +6,14 @@ It supports decisions. It does not approve or reject projects or declare legal c
 
 ## Current status
 
-Phase 0 (environment and repository setup) is in progress. No application modules are implemented yet. See `docs/PROGRESS.md` for what has been verified.
+**Prompt 4 – Authentication and Project Management:** Implemented ✅
+**Prompt 5 – Documents and Citizen Feedback:** Implemented ✅
+**Prompt 6 – Knowledge Graph:** Implemented ✅
+**Prompt 7 – Risk Analysis Engine:** Not started
+**Prompt 8 – ML Service Integration:** Not started
+**Prompt 9 – Testing & Hardening:** In progress
+
+See `docs/PROGRESS.md` for detailed verification.
 
 ## Technology stack
 

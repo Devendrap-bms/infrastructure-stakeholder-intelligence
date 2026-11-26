@@ -7,21 +7,86 @@
 
 ## Current Status Summary
 
-| Phase | Name | Owner(s) | Status | Target |
-|-------|------|----------|--------|--------|
-| 0 | Environment & Repository Setup | All | ✅ Verified | 2026-11-15 |
-| 1 | Core Backend Foundation | Dev 1 | 🔄 Planned | Week 1-2 |
-| 2 | Data Ingestion Infrastructure | Dev 1, Dev 2 | 🔄 Planned | Week 2-3 |
-| 3 | ML Service Core | Dev 2 (Akshay) | 🔄 Planned | Week 3-4 |
-| 4 | Knowledge Graph | Dev 1 | 🔄 Planned | Week 4-6 |
-| 5 | Risk Analysis Engine | Dev 1 | 🔄 Planned | Week 5-7 |
-| 6 | Backend Integration | Dev 1, Dev 2 | 🔄 Planned | Week 6-8 |
-| 7 | MVP Frontend | Dev 3 (Lucky) | 🔄 Planned | Week 8-10 |
-| 8 | Testing & Integration | All | 🔄 Planned | Week 10-11 |
-| 9 | Documentation & Handoff | All | 🔄 Planned | Week 11-12 |
+| Prompt | Name | Owner(s) | Status | Target |
+|--------|------|----------|--------|--------|
+| **4** | Authentication & Project Management | Dev 1 | ✅ Implemented | Week 1-2 |
+| **5** | Documents & Citizen Feedback | Dev 1 | ✅ Implemented | Week 2-3 |
+| **6** | Knowledge Graph | Dev 1 | ✅ Implemented | Week 4-6 |
+| **7** | Risk Analysis Engine | Dev 1 | ⏳ Not started | Week 5-7 |
+| **8** | ML Service Integration | Dev 2 | ⏳ Not started | Week 3-4 |
+| **9** | Testing & Hardening | All | 🔄 In progress | Week 10-11 |
 
-**Next Phase:** Phase 1 (pending team confirmation)
-**Estimated Start:** Upon Phase 0 PR merge and team confirmation
+**Next Focus:** Prompt 7 (Risk Analysis Engine) - awaiting approval to start
+
+---
+
+### Prompt 4 – Authentication and Project Management ✅ Complete
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Better Auth setup (email/password) | Implemented | `@convex-dev/better-auth` v0.13.1 |
+| User profile table with RBAC roles | Implemented | `user` table with `authId`, `email`, `role` (analyst/planner/admin) |
+| Project CRUD operations | Implemented | `convex/projects.ts` - create, read, update, delete |
+| Project membership management | Implemented | `project_members` table with owner/editor/viewer roles |
+| Project-level authorization | Implemented | Owner exclusive access to project CRUD, members can view |
+
+**Files:** `convex/auth.ts`, `convex/projects.ts`
+
+---
+
+### Prompt 5 – Documents and Citizen Feedback ✅ Complete
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Document storage with Convex file storage | Implemented | `documents.ts` with upload/download URLs |
+| File validation (MIME type, size) | Implemented | 50MB limit, allowed MIME types |
+| Document metadata schema | Implemented | `mimeType`, `documentType`, `fileSize`, `storageId` |
+| Project-document association | Implemented | `projectId` foreign key with access control |
+| Citizen feedback submission | Implemented | Supported languages: en, te, te-Latn, kn, kn-Latn |
+| Feedback processing statuses | Implemented | `processingStatus`, `classificationStatus`, `entitiesStatus`, `humanReviewStatus` |
+| Feedback archival on project deletion | Implemented | `feedback_archive` table |
+
+**Files:** `convex/documents.ts`, `convex/citizen_feedback.ts`
+
+---
+
+### Prompt 6 – Knowledge Graph ✅ Complete
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Graph entities (7 types) | Implemented | activity, stakeholder, location, receptor, infrastructure_type, impact, mitigation |
+| Graph relationships | Implemented | 7 relationship types with evidence provenance |
+| Evidence types | Implemented | verified_fact, reported_concern, inferred_relationship, unverified_hypothesis |
+| Confidence validation | Implemented | Range [0, 1] for inferred relationships |
+| Type/ID validation in relationships | Implemented | Explicit table lookups for sourceType/targetType |
+| Historical evidence (global) | Implemented | `historical_evidence` table, not project-scoped |
+| Project-level graph isolation | Implemented | Ownership checks on all entity/relationship operations |
+
+**Files:** `convex/graph.ts`, `convex/graph.test.ts`
+
+**Test Results:** 135 tests pass
+
+---
+
+### Prompt 7 – Risk Analysis Engine ⏳ Not Started
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Mitigation coverage matrix | ⏳ Not started | `mitigations` table created but no engine |
+| Risk scoring algorithm | ⏳ Not started | `priorityScore` field not computed |
+| Risk prioritization | ⏳ Not started | Not implemented |
+
+---
+
+### mBERT / XLM-R Model Training ⏳ Not Started
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Dataset preparation | ⏳ Not started | Research phase only |
+| Model loading (mBERT) | ⏳ Not started | Models not loaded |
+| Model loading (XLM-R) | ⏳ Not started | Models not loaded |
+| Training loop | ⏳ Not started | Not implemented |
+| ML service endpoints | ⏳ Not started | `/classify`, `/extract`, `/analyze` not implemented |
 
 ---
 

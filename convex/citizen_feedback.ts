@@ -228,6 +228,7 @@ export const updateProcessingStatus = mutation({
 });
 
 // Add ML classification results (called by ML service integration)
+// RESTRICTED to project owner until trusted ML service authentication is implemented
 export const addClassificationResults = mutation({
   args: {
     feedbackId: v.id("citizen_feedback"),
@@ -264,6 +265,13 @@ export const addClassificationResults = mutation({
     );
     if (accessLevel === "none") {
       throw new Error("Unauthorized: Project access required");
+    }
+
+    // RESTRICTED to owner only until trusted ML-service authentication is implemented
+    if (accessLevel !== "owner") {
+      throw new Error(
+        "Unauthorized: Project owner access required for classification results",
+      );
     }
 
     // Validate confidence is between 0 and 1

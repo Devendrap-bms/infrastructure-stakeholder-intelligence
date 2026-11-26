@@ -134,7 +134,7 @@ export const generateUploadUrl = mutation({
   },
 });
 
-// Store document metadata after successful upload
+// Store document metadata after successful upload (validates actual file metadata)
 export const storeDocument = mutation({
   args: {
     projectId: v.id("projects"),
@@ -149,8 +149,6 @@ export const storeDocument = mutation({
       v.literal("feasibility_report"),
       v.literal("public_hearing_record"),
     ),
-    mimeType: v.string(),
-    fileSize: v.number(),
     provenance: v.string(),
     metadata: v.object({
       pages: v.optional(v.number()),
@@ -171,16 +169,33 @@ export const storeDocument = mutation({
       throw new Error("Unauthorized: Project access required");
     }
 
-    // Validate file type
-    if (!ALLOWED_MIME_TYPES.includes(args.mimeType)) {
+    // Retrieve actual storage metadata - do not trust client-provided values
+    let storageMetadata: { size?: number; contentType?: string } | null = null;
+    try {
+      storageMetadata = await (ctx.db as any).system?.get?.(
+        "_storage",
+        args.storageId,
+      );
+    } catch (_e) {
+      // Storage object not found or other error
+    }
+
+    if (!storageMetadata) {
+      throw new Error("Storage object not found for provided storageId");
+    }
+
+    // Validate actual file size
+    const actualFileSize = storageMetadata.size ?? 0;
+    if (actualFileSize > MAX_FILE_SIZE) {
+      throw new Error("File size exceeds maximum allowed (50MB)");
+    }
+
+    // Validate actual content type against allowed MIME types
+    const actualContentType = storageMetadata.contentType;
+    if (!actualContentType || !ALLOWED_MIME_TYPES.includes(actualContentType)) {
       throw new Error(
         `Invalid file type. Allowed types: ${ALLOWED_MIME_TYPES.join(", ")}`,
       );
-    }
-
-    // Validate file size
-    if (args.fileSize > MAX_FILE_SIZE) {
-      throw new Error("File size exceeds maximum allowed (50MB)");
     }
 
     const now = Date.now();
@@ -189,8 +204,8 @@ export const storeDocument = mutation({
       projectId: args.projectId,
       fileName: args.fileName,
       documentType: args.documentType,
-      mimeType: args.mimeType,
-      fileSize: args.fileSize,
+      mimeType: actualContentType,
+      fileSize: actualFileSize,
       storageId: args.storageId,
       version: 1,
       provenance: args.provenance,
@@ -212,7 +227,7 @@ export const storeDocument = mutation({
   },
 });
 
-// Upload a document to a project (combined flow)
+// Upload a document to a project (combined flow with metadata validation)
 export const uploadDocument = mutation({
   args: {
     projectId: v.id("projects"),
@@ -227,8 +242,6 @@ export const uploadDocument = mutation({
       v.literal("feasibility_report"),
       v.literal("public_hearing_record"),
     ),
-    mimeType: v.string(),
-    fileSize: v.number(),
     provenance: v.string(),
     metadata: v.object({
       pages: v.optional(v.number()),
@@ -249,16 +262,33 @@ export const uploadDocument = mutation({
       throw new Error("Unauthorized: Project access required");
     }
 
-    // Validate file type
-    if (!ALLOWED_MIME_TYPES.includes(args.mimeType)) {
+    // Retrieve actual storage metadata - do not trust client-provided values
+    let storageMetadata: { size?: number; contentType?: string } | null = null;
+    try {
+      storageMetadata = await (ctx.db as any).system?.get?.(
+        "_storage",
+        args.storageId,
+      );
+    } catch (_e) {
+      // Storage object not found or other error
+    }
+
+    if (!storageMetadata) {
+      throw new Error("Storage object not found for provided storageId");
+    }
+
+    // Validate actual file size
+    const actualFileSize = storageMetadata.size ?? 0;
+    if (actualFileSize > MAX_FILE_SIZE) {
+      throw new Error("File size exceeds maximum allowed (50MB)");
+    }
+
+    // Validate actual content type against allowed MIME types
+    const actualContentType = storageMetadata.contentType;
+    if (!actualContentType || !ALLOWED_MIME_TYPES.includes(actualContentType)) {
       throw new Error(
         `Invalid file type. Allowed types: ${ALLOWED_MIME_TYPES.join(", ")}`,
       );
-    }
-
-    // Validate file size
-    if (args.fileSize > MAX_FILE_SIZE) {
-      throw new Error("File size exceeds maximum allowed (50MB)");
     }
 
     const now = Date.now();
@@ -267,8 +297,8 @@ export const uploadDocument = mutation({
       projectId: args.projectId,
       fileName: args.fileName,
       documentType: args.documentType,
-      mimeType: args.mimeType,
-      fileSize: args.fileSize,
+      mimeType: actualContentType,
+      fileSize: actualFileSize,
       storageId: args.storageId,
       version: 1,
       provenance: args.provenance,
