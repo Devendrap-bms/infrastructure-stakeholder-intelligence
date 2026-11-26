@@ -53,6 +53,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(result.error.message || "Sign in failed");
       }
 
+      const session = await authClient.getSession();
+      if (!session.data || !session.data.user) {
+        setIsAuthenticated(false);
+        setUser(null);
+        throw new Error("Sign in succeeded but no session was returned");
+      }
+
+      setUser(session.data.user);
       setIsAuthenticated(true);
     },
     [],

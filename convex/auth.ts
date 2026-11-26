@@ -28,7 +28,7 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
       onDelete: async (ctx, authUser) => {
         const profile = await ctx.db
           .query("user")
-          .withIndex("email", (q) => q.eq("email", authUser.email))
+          .withIndex("authId", (q) => q.eq("authId", authUser._id))
           .first();
         if (profile) await ctx.db.delete(profile._id);
       },
