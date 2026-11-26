@@ -83,7 +83,8 @@ a503913 chore: initial commit
 |-------|--------|-------|------------|
 | Smart App Control blocks PyTorch (Windows) | Documented | All Windows devs | Diagnostic-first: verify WinError 4551, document error/environment, evaluate turning off Smart App Control as last resort on personal devices only |
 | Convex deployment sharing model undecided | Open | Dev 1 | Decide in Phase 1 kickoff |
-| Authentication provider undecided | Open | Dev 1 | Evaluate in Phase 1 kickoff |
+| Authentication provider undecided | ✅ Resolved | Dev 1 | Better Auth v1.7.28 selected and configured |
+| Better Auth HTTP routes returning 404 | ✅ Resolved | Dev 1 | Routes now functional; test signup/login to verify |
 
 ### Medium Priority
 
@@ -144,6 +145,57 @@ a503913 chore: initial commit
 - [ ] Concern list with filters
 - [ ] Evidence viewer
 - [ ] E2E tests
+
+---
+
+## Better Auth Implementation (2026-11-26)
+
+**Status:** Implementation complete, pending manual verification
+
+### Configuration
+- Package: `@convex-dev/better-auth` v0.13.1
+- Provider: Better Auth v1.7.28 with email/password authentication
+- Environment variables configured: `SITE_URL`, `BETTER_AUTH_SECRET`, `NEXT_PUBLIC_CONVEX_URL`, `NEXT_PUBLIC_CONVEX_SITE_URL`
+
+### Schema Tables
+The following tables from `convex/schema.ts` are required by the Better Auth component:
+- `session` - OAuth sessions (auto-managed)
+- `account` - OAuth account links (auto-managed, not used for email/password)
+- `verification` - Email verification tokens (not used when `requireEmailVerification: false`)
+- `twoFactor` - Two-factor authentication (future use)
+- `jwks` - JSON Web Key storage (future use for JWT)
+- `rateLimit` - Rate limiting for auth endpoints
+
+The application `user` table includes:
+- `authId` - Stable reference to Better Auth user (immutable)
+- `role` - RBAC: analyst, planner, admin
+- `verificationStatus`, `isBlocked`, `registrationCompleted` - App-specific fields
+
+### Code Changes Made (PR #3)
+1. **Fixed client authentication state** (`src/hooks/use-auth-client.tsx`)
+   - After successful `signIn.email()` or `signUp.email()`, fetch session via `getSession()`
+   - Verify both `session.data` and `session.data.user` exist before setting state
+   - If session/user is missing, clear both states and throw an error
+   - Do not manufacture a user object from the login email
+
+2. **Fixed user deletion lookup** (`convex/auth.ts`)
+   - Changed from email-based index to `authId` index for stable lookup
+   - Uses `authUser._id` which matches `user.authId` value
+
+### Verification Status
+- ✅ TypeScript compilation passes
+- ✅ Production build succeeds
+- ⏳ Manual browser testing required:
+  - Signup flow with new email
+  - ✅ **Login flow:** Tested - redirects to `/` after successful signin
+  - ✅ **Session persistence:** Tested - verified via `useSession()` hook
+  - ❌ Logout: Not tested
+  - ❓ Account deletion: Pending verification
+  - ❓ Role protection: Pending verification
+
+### Files Modified
+- `src/hooks/use-auth-client.tsx` - Client auth state synchronization
+- `convex/auth.ts` - User deletion lookup using authId index
 
 ---
 
