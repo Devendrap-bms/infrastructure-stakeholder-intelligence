@@ -5,9 +5,11 @@
  * Required environment variables:
  * - BETTER_AUTH_SECRET: A random secret string (64 chars recommended)
  * - BETTER_AUTH_URL: Your app URL (e.g., http://localhost:3000)
+ * - CONVEX_SITE_URL: Your Convex deployment URL
  */
 
 import { convex } from "@convex-dev/better-auth/plugins";
+import authConfig from "./auth.config";
 import { betterAuth, type DBFieldType } from "better-auth";
 
 // Email/password configuration
@@ -30,15 +32,14 @@ const userConfig = {
 // ctx parameter receives Convex context with database adapter
 export function createAuth(ctx: any) {
   return betterAuth({
-    baseURL: process.env.SITE_URL || "http://localhost:3000",
+    baseURL: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_CONVEX_SITE_URL || "http://localhost:3000",
     database: ctx,
     emailAndPassword: emailConfig,
     user: userConfig,
+    secret: process.env.BETTER_AUTH_SECRET,
     plugins: [
       convex({
-        authConfig: {
-          providers: [], // No OAuth providers - email/password only
-        },
+        authConfig,
       }),
     ],
   });

@@ -7,32 +7,36 @@ export const getUserWithRole = query({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return null;
 
-    // Return identity info
-    // Role will be stored in Better Auth's internal user table
-    // Access via identity.role field after session customization
+    const user = await ctx.db
+      .query("user")
+      .filter((u) => u.email === identity.email)
+      .first();
+
+    if (!user) return null;
+
     return {
       email: identity.email,
       subject: identity.subject,
-      role: (identity as any).role || "analyst",
+      role: user.role || "analyst",
     };
   },
 });
 
 export const assignRole = mutation({
   args: {
-    userId: v.id("users"),
-    role: v.union(v.literal("analyst"), v.literal("planner")),
+    userId: v.id("user"),
+    role: v.union(v.literal("analyst"), v.literal("planner"), v.literal("admin")),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
     const currentUser = await ctx.db
-      .query("users" as any)
-      .filter((u: any) => u.email === identity.email)
+      .query("user")
+      .filter((u) => u.email === identity.email)
       .first();
 
-    if (!currentUser || (currentUser as any).role !== "admin") {
+    if (!currentUser || currentUser.role !== "admin") {
       throw new Error("Unauthorized: Admin access required");
     }
 

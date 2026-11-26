@@ -1,6 +1,10 @@
 import { httpRouter } from "convex/server";
+import { createAuth } from "./auth.js";
+import { createClient } from "@convex-dev/better-auth";
+import { components } from "./_generated/api";
 
-// HTTP router - Better Auth routes will be registered here
-// Once auth.ts is complete, use authComponent.registerRoutes(http, createAuth)
+const http = httpRouter();
+const auth = createClient(components.betterAuth, { verbose: true });
+auth.registerRoutes(http, createAuth);
 
-export default httpRouter();
+export default http;
