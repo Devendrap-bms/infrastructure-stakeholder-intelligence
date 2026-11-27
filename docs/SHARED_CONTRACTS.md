@@ -2,7 +2,7 @@
 
 **Project:** Knowledge-Driven Stakeholder Analysis and Risk Intelligence for Infrastructure Planning
 **Last Updated:** 2026-11-27
-**Status:** Version 2.0 (Prompts 4-7 implemented, Prompt 8-9 pending)
+**Status:** Version 3.0 (Prompts 4-7 implemented, Prompt 8-9 pending)
 **Version Control:** Increment on breaking changes
 
 ---
@@ -289,15 +289,12 @@ These contracts enable parallel development with mock services and type safety.
 
 | Function | Type | Args | Description |
 |----------|------|------|-------------|
-| `identifyRisk` | mutation | `projectId, title, description, category, confidence, entityId?, stakeholderId?, locationId?, evidenceType, evidenceRef, sourcePassage?` | Creates an evidence-grounded risk with provenance tracking |
+| `identifyRisk` | mutation | `projectId, title, description, category, entityId?, stakeholderId?, locationId?, likelihood, impact, exposure, evidenceRef, evidenceType, sourcePassage?` | Creates an evidence-grounded risk with likelihood, impact, exposure scales (1-5) |
 
-**Evidence Types:** `verified_fact`, `reported_concern`, `inferred_relationship`, `unverified_hypothesis`
-
-**Evidence Provenance:**
-- **DOCUMENTED**: Risks from project documents (EIA, DPR, etc.)
-- **CITIZEN_VOICE**: Risks from citizen feedback/concerns
-- **PATTERN_INFERRED**: Risks inferred from ML analysis
-- **HISTORICAL_ANALOG**: Risks from historical evidence comparisons
+Evidence validation:
+- Validates evidenceRef exists and belongs to the same project
+- Validates evidenceType matches the evidenceRef source type
+- Creates evidence_items record as part of the same transaction
 
 ### 4.2 Risk Retrieval
 
@@ -305,42 +302,41 @@ These contracts enable parallel development with mock services and type safety.
 |----------|------|------|-------------|
 | `getRisksForProject` | query | `projectId, category?, status?, riskLevel?` | Lists all risks with optional filters |
 | `getRiskWithEvidence` | query | `riskId` | Gets risk with full evidence chain |
-| `getPrioritizedRisks` | query | `projectId` | Gets risks sorted by evidence-based score |
+| `getPrioritizedRisks` | query | `projectId` | Gets risks sorted by inherent risk score (descending) |
 | `getRiskImpactTrace` | query | `projectId, riskId` | Gets risk with related entities and evidence |
 
-### 4.3 Mitigation Intelligence
+### 4.3 Evidence Management
+
+| Function | Type | Args | Description |
+|----------|------|------|-------------|
+| `addEvidence` | mutation | `riskId, evidenceType, evidenceRef, sourceEvidenceType, relevance, evidenceStrength, verificationStatus, sourcePassage?` | Adds evidence to a risk with project isolation for documents and feedback |
+
+**Historical Evidence Rules:**
+- Historical evidence is global (not project-scoped)
+- Cross-project restriction: Document evidence and citizen feedback evidence cannot cross projects
+- Historical evidence alone cannot establish a verified current risk without additional verification
+- Historical evidence always derives `evidenceStrength` and `verificationStatus` as "unverified" from source record
+
+### 4.4 Mitigation Management
 
 | Function | Type | Args | Description |
 |----------|------|------|-------------|
 | `suggestMitigations` | query | `riskId` | Finds candidate mitigations from evidence |
+| `createMitigationCandidate` | mutation | `riskId, mitigationId, notes?` | Creates a mitigation candidate from template |
 | `getMitigationsForRisk` | query | `riskId` | Lists all mitigation candidates for a risk |
 | `approveMitigation` | mutation | `mitigationId, notes?` | Approves a mitigation candidate |
 | `rejectMitigation` | mutation | `mitigationId, notes?` | Rejects a mitigation candidate |
+| `implementMitigation` | mutation | `mitigationId, implementationEvidenceRef, notes?` | Implements an approved mitigation with same-project evidence |
+| `verifyMitigationEffectiveness` | mutation | `mitigationId, effectivenessPercent, effectivenessEvidenceRef, notes?, assessmentBasis?` | Assesses mitigation effectiveness. **Always returns PROVISIONAL** - there is no defensible quantitative validation method yet. Evidence references are validated (existence, same-project) but do not constitute quantitative effectiveness. |
 
-### 4.4 Human Review Workflow
+**Mitigation Effectiveness Rules:**
+- `NOT_ASSESSED` - No verified mitigation effectiveness available (initial state)
+- `PROVISIONAL` - Effectiveness level for all outputs of this function. A caller-supplied percentage plus evidence reference does NOT constitute quantitative effectiveness without a validated methodology.
+- `ASSESSED` - Not currently achievable. When a quantitative validation method is implemented in the project, this state will become available.
+- Unapproved mitigations do not reduce residual risk score
+- Unverified effectiveness does not reduce residual risk score
 
-| Function | Type | Args | Description |
-|----------|------|------|-------------|
-| `updateRiskStatus` | mutation | `riskId, status, action, notes?` | Accept/reject/edit risks |
-| `requestAdditionalEvidence` | mutation | `riskId, notes?` | Flags risk for more evidence |
-
-### 4.5 Risk Scoring
-
-**Inherent Risk Score Formula:**
-```
-Inherent Risk Score = Likelihood × Impact × Exposure
-
-Score Range: 1-125 (integer)
-Risk Levels:
-- LOW: 1-20
-- MEDIUM: 21-60
-- HIGH: 61-80
-- CRITICAL: 81-125
-```
-
-**Note:** No mathematical mitigation effectiveness model is implemented. The `combined` calculation in tests demonstrates a possible approach but is not used in production risk scoring. Mitigation effectiveness must be assessed through verified evidence, not arbitrary formulas.
-
-### 4.6 Risk Status Lifecycle
+### 4.5 Risk Status Lifecycle
 
 **Status Values:**
 - `PENDING_REVIEW` - Risk identified, under initial review
@@ -356,7 +352,7 @@ REJECTED → UNRESOLVED, PENDING_REVIEW
 UNRESOLVED → PENDING_REVIEW, ACCEPTED, REJECTED
 ```
 
-### 4.7 Residual Risk Lifecycle
+### 4.6 Residual Risk Lifecycle
 
 **Effectiveness Levels:**
 - `NOT_ASSESSED` - No verified mitigation effectiveness available
@@ -364,15 +360,31 @@ UNRESOLVED → PENDING_REVIEW, ACCEPTED, REJECTED
 - `ASSESSED` - Sufficient verified mitigation effectiveness evidence exists
 
 **Residual Risk Calculation Rules:**
-- Inherent risk remains unchanged after mitigation
-- Unapproved or unimplemented mitigation does not reduce residual risk score
-- Unverified mitigation effectiveness does not reduce residual risk score
-- If residual risk cannot be calculated defensibly, store `residualRiskScore: undefined` and `residualRiskAssessmentLevel: "NOT_ASSESSED"`
-- Historical evidence alone cannot establish a verified residual risk
+- Inherent risk score must NEVER change because of mitigation
+- Proposed, rejected, merely approved, or unimplemented mitigations must NOT reduce residual risk
+- Unverified or provisional effectiveness must NOT reduce residual risk
+- Only eligible implemented mitigations with assessed effectiveness may contribute to residual-risk assessment
+- If a defensible residual score cannot be calculated, leave it unset (`undefined`) and explain why in `residualRiskAssessmentNotes`
+- Preserve evidence references and assessment history supporting an assessed residual score
+- Do not silently treat missing evidence as zero risk
+- Do not invent a formula for combining multiple mitigations
 
-### 4.8 Risk Data Model
+**Assessment States:**
+| State | Conditions | Residual Score |
+|-------|------------|----------------|
+| `NOT_ASSESSED` | No implemented mitigations with ASSESSED effectiveness | `undefined` |
+| `PROVISIONAL` | Multiple eligible mitigations (no combination formula) OR single mitigation missing verified effective percent | `undefined` |
+| `ASSESSED` | Single implemented mitigation with ASSESSED effectiveness and verified percent | Calculated: `inherentRiskScore × (1 - effectiveness/100)` |
 
-### 4.6 Risk Data Model Extensions
+**Multiple Mitigation Combination:**
+The test formula `combined = m1 + m2 × (1 - m1/100) × overlap` exists in tests but is NOT used in production residual risk calculation. No validated methodology or evidence source exists for the `overlap` parameter. When multiple assessed mitigations exist, residual risk remains `PROVISIONAL` with score `undefined`.
+
+**Assessment History:**
+Each residual risk assessment is appended to the `residual_risk_assessments` table as an immutable record with:
+- `riskId`, `assessmentState`, `residualRiskScore`, `inherentRiskScore`
+- `evidenceRefs`, `assessmentNotes`, `assessedBy`, `assessedAt`
+
+### 4.7 Risk Data Model Extensions
 
 **New Tables:**
 
@@ -387,28 +399,30 @@ UNRESOLVED → PENDING_REVIEW, ACCEPTED, REJECTED
   title: string,
   description: string,
   category: "environmental" | "social" | "technical" | "financial" | "legal",
-  likelihood: 1 | 2 | 3 | 4 | 5,
-  impact: 1 | 2 | 3 | 4 | 5,
-  exposure: 1 | 2 | 3 | 4 | 5,
-  inherentRiskScore: number,           // Likelihood × Impact × Exposure (1-125)
-  residualRiskScore?: number,          // Set only when defensively calculated
-  riskLevel: "low" | "medium" | "high" | "critical",
+  // Risk factors are OPTIONAL - if any is missing, inherentRiskScore will be null (INSUFFICIENT_DATA)
+  likelihood?: 1 | 2 | 3 | 4 | 5,
+  impact?: 1 | 2 | 3 | 4 | 5,
+  exposure?: 1 | 2 | 3 | 4 | 5,
+  // Inherent risk score: null if any factor is missing (INSUFFICIENT_DATA)
+  inherentRiskScore: number | null,
+  residualRiskScore?: number,
+  residualRiskAssessment?: "NOT_ASSESSED" | "PROVISIONAL" | "ASSESSED",
+  residualRiskEvidenceRefs?: (Id<"documents"> | Id<"citizen_feedback">)[],
+  residualRiskAssessmentNotes?: string,
+  riskLevel: "low" | "medium" | "high" | "critical" | "INSUFFICIENT_DATA",
   status: "PENDING_REVIEW" | "ACCEPTED" | "REJECTED" | "UNRESOLVED",
-  auditTrail: [
-    {
-      action: string,
-      performedBy: string,
-      performedAt: number,
-      notes?: string,
-      previousValue?: string,
-      newValue?: string,
-    },
-  ],
+  auditTrail: [...],
   createdBy: string,
   createdAt: number,
   updatedAt: number,
 }
 ```
+
+**Missing Factor Handling:**
+- Each risk factor (likelihood, impact, exposure) is independently validated when supplied
+- If ANY required factor is unavailable, `inherentRiskScore` is `null` and `riskLevel` is `"INSUFFICIENT_DATA"`
+- The formula `Likelihood × Impact × Exposure` is only applied when all three factors are present
+- `getPrioritizedRisks` returns scored risks first, then unscored (INSUFFICIENT_DATA) risks sorted by title
 
 **Note:** The `confidence` field has been removed from the risks table. All risk values are directly specified (likelihood, impact, exposure) and must be evidence-grounded.
 
@@ -419,8 +433,8 @@ UNRESOLVED → PENDING_REVIEW, ACCEPTED, REJECTED
   riskId: Id<"risks">,
   description: string,
   status: "proposed" | "approved" | "rejected" | "implemented",
-  supportingEvidenceType: "verified_fact" | "reported_concern" | "inferred_relationship" | "unverified_hypothesis",
-  supportingEvidenceRef: Id<"documents"> | Id<"citizen_feedback"> | Id<"historical_evidence">,
+  supportingEvidenceType?: "verified_fact" | "reported_concern" | "inferred_relationship" | "unverified_hypothesis",
+  supportingEvidenceRef?: Id<"documents"> | Id<"citizen_feedback"> | Id<"historical_evidence">,
   supportingEvidencePassage?: string,
   existingMitigationRef?: Id<"mitigations">,
   missingCoverage: boolean,
@@ -428,19 +442,19 @@ UNRESOLVED → PENDING_REVIEW, ACCEPTED, REJECTED
   recommendationReason: string,
   effectivenessLevel: "NOT_ASSESSED" | "PROVISIONAL" | "ASSESSED",
   verifiedEffectivePercent?: number,  // 0-100, only when ASSESSED
-  effectivenessEvidenceRef?: Id<"documents"> | Id<"citizen_feedback">,
-  implementationEvidenceRef?: Id<"documents"> | Id<"citizen_feedback"> | Id<"historical_evidence">,
+  assessmentBasis?: {
+    methodology: string,
+    outcomeMetric: string,
+    measurementPeriod: string,
+    supportingEvidenceRef: Id<"documents"> | Id<"citizen_feedback">,
+    rationale: string,
+  },
+  effectivenessEvidenceRef?: Id<"documents"> | Id<"citizen_feedback">,  // Documents/citizen_feedback only
+  implementationEvidenceRef?: Id<"documents"> | Id<"citizen_feedback">,  // No historical_evidence allowed
   createdBy: string,
   createdAt: number,
   updatedAt: number,
-  reviewHistory: [
-    {
-      action: "proposed" | "approved" | "rejected" | "implemented",
-      performedBy: string,
-      performedAt: number,
-      notes?: string,
-    },
-  ],
+  reviewHistory: [...],
 }
 ```
 
@@ -453,13 +467,39 @@ UNRESOLVED → PENDING_REVIEW, ACCEPTED, REJECTED
   evidenceRef: Id<"documents"> | Id<"citizen_feedback"> | Id<"historical_evidence">,
   sourceEvidenceType: "verified_fact" | "reported_concern" | "inferred_relationship" | "unverified_hypothesis",
   relevance: "primary" | "supporting",
-  evidenceStrength: "verified" | "unverified",
-  verificationStatus: "verified" | "unverified",
+  evidenceStrength: "verified" | "unverified",  // Derived from source record, not caller-supplied
+  verificationStatus: "verified" | "unverified",  // Derived from source record for project evidence
   sourcePassage?: string,
   addedBy: string,
   addedAt: number,
 }
 ```
+
+#### `residual_risk_assessments`
+```typescript
+{
+  _id: Id<"residual_risk_assessments">,
+  riskId: Id<"risks">,
+  assessmentState: "NOT_ASSESSED" | "PROVISIONAL" | "ASSESSED",
+  residualRiskScore?: number,
+  inherentRiskScore: number,
+  // Mitigation-related fields for audit trail and context
+  eligibleMitigationIds?: Id<"risk_mitigations">[],
+  mitigationEffectivenessSnapshots?: Array<{
+    mitigationId: Id<"risk_mitigations">,
+    verifiedEffectivePercent: number,
+    effectivenessEvidenceRef: Id<"documents"> | Id<"citizen_feedback">,
+    implementationEvidenceRef: Id<"documents"> | Id<"citizen_feedback">,
+  }>,
+  evidenceRefs?: (Id<"documents"> | Id<"citizen_feedback">)[],
+  assessmentNotes?: string,
+  assessedBy: string,
+  assessedAt: number,
+}
+```
+
+**Assessment History:**
+Each residual risk assessment is appended to the `residual_risk_assessments` table as an immutable record with complete mitigation context for auditability.
 
 **Evidence Provenance Types:**
 - `DOCUMENTED` - Risks from project documents (EIA, DPR, etc.)
@@ -471,8 +511,6 @@ UNRESOLVED → PENDING_REVIEW, ACCEPTED, REJECTED
 
 ---
 
-## 5. Risk Analysis API (Convex Functions)
-
 **Implemented:** Prompts 4-7 complete (November 2026)
 **Owner:** Dev 1 (Coordinator)
 
@@ -480,51 +518,54 @@ UNRESOLVED → PENDING_REVIEW, ACCEPTED, REJECTED
 
 | Function | Type | Args | Description |
 |----------|------|------|-------------|
-| `identifyRisk` | mutation | `projectId, title, description, category, entityId?, stakeholderId?, locationId?, likelihood, impact, exposure, evidenceRef, evidenceType, sourceEvidenceType, verificationStatus, relevance, sourcePassage?` | Creates an evidence-grounded risk with likelihood, impact, exposure scales (1-5) |
+| `identifyRisk` | mutation | `projectId, title, description, category, entityId?, stakeholderId?, locationId?, likelihood?, impact?, exposure?, evidenceRef, evidenceType, sourcePassage?` | Creates an evidence-grounded risk. Factors are optional - if any is missing, inherentRiskScore will be null (INSUFFICIENT_DATA) |
 
 ### 5.2 Risk Retrieval
 
 | Function | Type | Args | Description |
 |----------|------|------|-------------|
-| `getRisksForProject` | query | `projectId, category?, status?, riskLevel?` | Lists all risks with optional filters |
-| `getRiskWithEvidence` | query | `riskId` | Gets risk with full evidence chain |
-| `getPrioritizedRisks` | query | `projectId` | Gets risks sorted by inherent risk score (descending) |
+| `getRisksForProject` | query | `projectId, category?, status?, riskLevel?` | Lists all risks with optional filters, supports `INSUFFICIENT_DATA` risk level |
+| `getRiskWithEvidence` | query | `riskId` | Gets risk with full evidence chain, handles null factors gracefully |
+| `getPrioritizedRisks` | query | `projectId` | Returns scored risks first, then unscored (INSUFFICIENT_DATA) risks sorted by title |
 | `getRiskImpactTrace` | query | `projectId, riskId` | Gets risk with related entities and evidence |
 
 ### 5.3 Evidence Management
 
 | Function | Type | Args | Description |
 |----------|------|------|-------------|
-| `addEvidence` | mutation | `riskId, evidenceType, evidenceRef, sourceEvidenceType, relevance, evidenceStrength, verificationStatus, sourcePassage?` | Adds evidence to a risk with project isolation for documents and feedback |
+| `addEvidence` | mutation | `riskId, evidenceType, evidenceRef, sourceEvidenceType, relevance, evidenceStrength, verificationStatus, sourcePassage?` | Adds evidence to a risk. Verification status derived from `evidence_verifications` table for documents/feedback |
 
 **Historical Evidence Rules:**
 - Historical evidence is global (not project-scoped)
 - Cross-project restriction: Document evidence and citizen feedback evidence cannot cross projects
 - Historical evidence alone cannot establish a verified current risk without additional verification
+- Historical evidence is always unverified for current-project facts
 
 ### 5.4 Mitigation Management
 
 | Function | Type | Args | Description |
 |----------|------|------|-------------|
 | `suggestMitigations` | query | `riskId` | Finds candidate mitigations from evidence |
-| `createMitigationCandidate` | mutation | `riskId, mitigationId, notes?` | Creates a mitigation candidate from template |
+| `createMitigationCandidate` | mutation | `riskId, mitigationId, notes?` | Creates a mitigation candidate from template. Coverage check uses template's category via `existingMitigationRef` |
 | `getMitigationsForRisk` | query | `riskId` | Lists all mitigation candidates for a risk |
 | `approveMitigation` | mutation | `mitigationId, notes?` | Approves a mitigation candidate |
 | `rejectMitigation` | mutation | `mitigationId, notes?` | Rejects a mitigation candidate |
-| `verifyMitigationEffectiveness` | mutation | `mitigationId, effectivenessPercent, effectivenessEvidenceRef, notes?` | Marks mitigation as implemented with verified effectiveness |
+| `implementMitigation` | mutation | `mitigationId, implementationEvidenceRef, notes?` | Implements an approved mitigation |
+| `verifyMitigationEffectiveness` | mutation | `mitigationId, effectivenessPercent, effectivenessEvidenceRef, notes?, assessmentBasis?` | Assesses mitigation effectiveness. **Always returns PROVISIONAL** - there is no defensible quantitative validation method yet. Evidence references are validated (existence, same-project) but do not constitute quantitative effectiveness. |
 
 **Mitigation Effectiveness Rules:**
-- `NOT_ASSESSED` - No verified mitigation effectiveness available
-- `PROVISIONAL` - Some mitigation information exists, but evidence is insufficient for a defensible residual assessment
-- `ASSESSED` - Sufficient verified mitigation effectiveness evidence exists
+- `NOT_ASSESSED` - No verified mitigation effectiveness available (initial state)
+- `PROVISIONAL` - Effectiveness level for all outputs of this function. A caller-supplied percentage plus evidence reference does NOT constitute quantitative effectiveness without a validated methodology.
+- `ASSESSED` - Not currently achievable. When a quantitative validation method is implemented in the project, this state will become available.
 - Unapproved mitigations do not reduce residual risk score
-- Unverified effectiveness does not reduce residual risk score
+- Unverified or provisional effectiveness does not reduce residual risk score
+- Historical evidence cannot be used for implementationEvidenceRef or effectivenessEvidenceRef
 
 ### 5.5 Human Review Workflow
 
 | Function | Type | Args | Description |
 |----------|------|------|-------------|
-| `updateRiskStatus` | mutation | `riskId, status, action, notes?` | Accept/reject/edit risks with status validation |
+| `updateRiskStatus` | mutation | `riskId, status, notes?` | Updates risk status. **Action is derived internally as "status_updated"** - caller-supplied action is rejected |
 | `requestAdditionalEvidence` | mutation | `riskId, notes?` | Flags risk for more evidence |
 
 **Status Valid Transitions:**
@@ -580,7 +621,7 @@ Each risk maintains an `auditTrail` array with entries containing:
 }
 ```
 
-### 2.2 Language Detection
+### 6.2 Language Detection
 
 **Endpoint:** `POST /detect-language`
 **Request:**
@@ -599,7 +640,7 @@ Each risk maintains an `auditTrail` array with entries containing:
 ```
 **Supported languages:** en, te, te-Latn, kn, kn-Latn
 
-### 2.3 Concern Classification
+### 6.3 Concern Classification
 
 **Endpoint:** `POST /classify`
 **Request:**
@@ -623,7 +664,7 @@ Each risk maintains an `auditTrail` array with entries containing:
 ```
 **Categories:** environmental, social, technical, financial, legal
 
-### 2.4 Entity Extraction
+### 6.4 Entity Extraction
 
 **Endpoint:** `POST /extract`
 **Request:**
@@ -647,7 +688,7 @@ Each risk maintains an `auditTrail` array with entries containing:
 }
 ```
 
-### 2.5 Combined Analyze (Batch)
+### 6.5 Combined Analyze (Batch)
 
 **Endpoint:** `POST /analyze`
 **Request:**
@@ -679,7 +720,7 @@ Each risk maintains an `auditTrail` array with entries containing:
 }
 ```
 
-### 2.6 Error Responses
+### 6.6 Error Responses
 
 All endpoints may return:
 ```json
@@ -697,13 +738,13 @@ All endpoints may return:
 
 ---
 
-## 3. Next.js Route Handlers (API Routes)
+## 7. Next.js Route Handlers (API Routes)
 
 **Owner:** Dev 3 (Lucky)
 
 > **Note:** Route Handlers are built **after** Phase 5 (Risk Engine completion). Current Phase 3 status: Contracts defined but implementation pending.
 
-### 3.1 Convex Connection Check
+### 7.1 Convex Connection Check
 
 **Endpoint:** `GET /api/convex-test`
 **Response:**
@@ -711,7 +752,7 @@ All endpoints may return:
 { "ok": true, "message": "Convex is connected" }
 ```
 
-### 3.2 Projects API
+### 7.2 Projects API
 
 | Method | Path | Handler | Response |
 |--------|------|---------|----------|
@@ -721,7 +762,7 @@ All endpoints may return:
 | PUT | `/api/projects/[id]` | `updateProject` | Project (updated) |
 | DELETE | `/api/projects/[id]` | `deleteProject` | { success: true } |
 
-### 3.3 Documents API
+### 7.3 Documents API
 
 | Method | Path | Handler | Response |
 |--------|------|---------|----------|
@@ -729,14 +770,14 @@ All endpoints may return:
 | GET | `/api/documents/[id]` | `getDocument` | Document |
 | GET | `/api/projects/[projectId]/documents` | `listProjectDocuments` | Document[] |
 
-### 3.4 Feedback API
+### 7.4 Feedback API
 
 | Method | Path | Handler | Response |
 |--------|------|---------|----------|
 | POST | `/api/feedback` | `submitFeedback` | Feedback (created) |
 | GET | `/api/projects/[projectId]/feedback` | `listProjectFeedback` | CitizenFeedback[] |
 
-### 3.5 Concerns API
+### 7.5 Concerns API
 
 | Method | Path | Handler | Response |
 |--------|------|---------|----------|
@@ -745,7 +786,7 @@ All endpoints may return:
 | GET | `/api/concerns/[id]` | `getConcern` | Concern |
 | GET | `/api/concerns/prioritized/[projectId]` | `getPrioritisedConcerns` | Concern[] (sorted by priority) |
 
-### 3.6 Evidence API
+### 7.6 Evidence API
 
 | Method | Path | Handler | Response |
 |--------|------|---------|----------|
@@ -754,7 +795,7 @@ All endpoints may return:
 
 ---
 
-## 4. ML Service Client Interface (TypeScript)
+## 8. ML Service Client Interface (TypeScript)
 
 **Owner:** Dev 3 (Lucky) - implementation; Dev 2 (Akshay) - API definition
 
@@ -802,9 +843,9 @@ export const mlClient = new MLClient(process.env.NEXT_PUBLIC_ML_SERVICE_URL);
 
 ---
 
-## 5. Integration Patterns
+## 9. Integration Patterns
 
-### 5.1 Document Upload Flow
+### 9.1 Document Upload Flow
 
 ```
 1. Frontend: POST /api/documents (multipart/form-data)
@@ -815,7 +856,7 @@ export const mlClient = new MLClient(process.env.NEXT_PUBLIC_ML_SERVICE_URL);
 6. Return: Document ID, Concern IDs
 ```
 
-### 5.2 Evidence Retrieval Flow
+### 9.2 Evidence Retrieval Flow
 
 ```
 1. Frontend: GET /api/evidence?query=criteria
@@ -826,7 +867,7 @@ export const mlClient = new MLClient(process.env.NEXT_PUBLIC_ML_SERVICE_URL);
 5. Return: Ranked list of evidence
 ```
 
-### 5.3 Concern Prioritisation Flow
+### 9.3 Concern Prioritisation Flow
 
 ```
 1. Concerns have: category, mitigationStatus, evidence strength
@@ -840,22 +881,22 @@ export const mlClient = new MLClient(process.env.NEXT_PUBLIC_ML_SERVICE_URL);
 
 ---
 
-## 6. Error Handling
+## 10. Error Handling
 
-### 6.1 ML Service Errors
+### 10.1 ML Service Errors
 
 - **Model load failure:** `/health` returns `models_loaded: false`, 500
 - **GPU OOM:** Return 500 with "resource exhausted" message
 - **Text too long:** Return 422 with character limit
 - **Language not supported:** Return 422 with supported languages list
 
-### 6.2 Convex Errors
+### 10.2 Convex Errors
 
 - Use Convex's built-in error handling in mutations/queries
 - Propagate meaningful messages to Route Handlers
 - Frontend: Display user-friendly toast/snackbar
 
-### 6.3 Route Handler Errors
+### 10.3 Route Handler Errors
 
 - Always return JSON: `{ error: "message" }`
 - Use appropriate HTTP status codes
@@ -863,7 +904,7 @@ export const mlClient = new MLClient(process.env.NEXT_PUBLIC_ML_SERVICE_URL);
 
 ---
 
-## 7. Rate Limits & Constraints
+## 11. Rate Limits & Constraints
 
 ### ML Service
 - Request size: 1000 characters per text
@@ -878,15 +919,14 @@ export const mlClient = new MLClient(process.env.NEXT_PUBLIC_ML_SERVICE_URL);
 
 ---
 
-## 8. Version History
+## 12. Version History
 
 | Version | Date | Changes | Author |
 |---------|------|---------|--------|
 | 0.1 | 2026-11-22 | Initial: Phase 0 data models, ML API shapes, Route Handler structure | Dev 1 |
 | 1.0 | 2026-11-26 | Prompts 4-6: Auth, Documents, Feedback, Knowledge Graph APIs | Dev 1 |
-| 2.0 | 2026-11-27 | Prompt 7: Risk Analysis Engine, Evidence Traceability, Mitigation Management. Corrections: Removed confidence field from risks schema, added residual risk lifecycle, documented multiple mitigation combination, historical evidence safeguards | Dev 1 |
-| 3.0 | TBD | Prompt 8: ML Service Integration, Model APIs | Dev 2 |
-| 4.0 | TBD | Prompt 9: Full Testing, E2E, Production Hardening | All |
+| 2.0 | 2026-11-27 | Prompt 7: Risk Analysis Engine, Evidence Traceability, Mitigation Management | Dev 1 |
+| 3.0 | 2026-11-27 | Prompt 7 Defect Corrections: Added INSUFFICIENT_DATA risk level, nullable risk factors/schemas, single source of truth for verification, PROVISIONAL-effectiveness default, mitigation snapshots in residual assessment, category-based coverage via existingMitigationRef, derived audit action in updateRiskStatus, safe prioritized retrieval for unscored risks | Dev 1 |
 
 ---
 

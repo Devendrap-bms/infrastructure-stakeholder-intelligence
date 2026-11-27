@@ -85,6 +85,12 @@ export default defineSchema({
       v.literal("completed"),
       v.literal("failed"),
     ),
+    // Explicit factual verification for evidence integrity
+    // Processing completion does NOT equal factual verification - requires explicit verification action
+    verificationStatus: v.union(v.literal("unverified"), v.literal("verified")),
+    verifiedBy: v.optional(v.string()),
+    verifiedAt: v.optional(v.number()),
+    verificationNotes: v.optional(v.string()),
     uploadedBy: v.string(),
     uploadedAt: v.number(),
     updatedAt: v.number(),
@@ -99,7 +105,8 @@ export default defineSchema({
     .index("by_project", ["projectId"])
     .index("by_uploader", ["uploadedBy"])
     .index("by_type", ["documentType"])
-    .index("by_status", ["uploadStatus"]),
+    .index("by_status", ["uploadStatus"])
+    .index("by_verification", ["verificationStatus"]),
 
   // Citizen feedback table
   citizen_feedback: defineTable({
@@ -150,6 +157,12 @@ export default defineSchema({
         notes: v.optional(v.string()),
       }),
     ),
+    // Explicit factual verification for evidence integrity
+    // Human review does NOT equal factual verification - requires explicit verification action
+    verificationStatus: v.union(v.literal("unverified"), v.literal("verified")),
+    verifiedBy: v.optional(v.string()),
+    verifiedAt: v.optional(v.number()),
+    verificationNotes: v.optional(v.string()),
     // Fields populated by ML service - remain pending until ML processes
     category: v.optional(
       v.union(
@@ -174,7 +187,8 @@ export default defineSchema({
     .index("by_submitter", ["submittedBy"])
     .index("by_language", ["language"])
     .index("by_review_status", ["humanReviewStatus"])
-    .index("by_processing_status", ["processingStatus"]),
+    .index("by_processing_status", ["processingStatus"])
+    .index("by_verification", ["verificationStatus"]),
 
   // Feedback archive for deleted feedback (preserves content)
   feedback_archive: defineTable({
@@ -256,30 +270,37 @@ export default defineSchema({
     .index("by_verification", ["verificationStatus"]),
 
   // Risk assessment scales (1-5)
+  // Factors are optional to support INSUFFICIENT_DATA handling
   risk_scales: defineTable({
     projectId: v.id("projects"),
-    likelihood: v.union(
-      v.literal(1),
-      v.literal(2),
-      v.literal(3),
-      v.literal(4),
-      v.literal(5),
+    likelihood: v.optional(
+      v.union(
+        v.literal(1),
+        v.literal(2),
+        v.literal(3),
+        v.literal(4),
+        v.literal(5),
+      ),
     ),
-    impact: v.union(
-      v.literal(1),
-      v.literal(2),
-      v.literal(3),
-      v.literal(4),
-      v.literal(5),
+    impact: v.optional(
+      v.union(
+        v.literal(1),
+        v.literal(2),
+        v.literal(3),
+        v.literal(4),
+        v.literal(5),
+      ),
     ),
-    exposure: v.union(
-      v.literal(1),
-      v.literal(2),
-      v.literal(3),
-      v.literal(4),
-      v.literal(5),
+    exposure: v.optional(
+      v.union(
+        v.literal(1),
+        v.literal(2),
+        v.literal(3),
+        v.literal(4),
+        v.literal(5),
+      ),
     ),
-    inherentRiskScore: v.number(),
+    inherentRiskScore: v.union(v.number(), v.null()),
   }).index("by_project", ["projectId"]),
 
   // Risks table (Phase 5 - Risk Analysis Engine)
@@ -297,34 +318,57 @@ export default defineSchema({
       v.literal("financial"),
       v.literal("legal"),
     ),
-    likelihood: v.union(
-      v.literal(1),
-      v.literal(2),
-      v.literal(3),
-      v.literal(4),
-      v.literal(5),
+    // Likelihood scale: 1=Rare to 5=Almost Certain (heuristic prioritization, not probability)
+    // Missing factor handling: if any factor is missing, inherentRiskScore will be null (INSUFFICIENT_DATA)
+    likelihood: v.optional(
+      v.union(
+        v.literal(1),
+        v.literal(2),
+        v.literal(3),
+        v.literal(4),
+        v.literal(5),
+      ),
     ),
-    impact: v.union(
-      v.literal(1),
-      v.literal(2),
-      v.literal(3),
-      v.literal(4),
-      v.literal(5),
+    // Impact scale: 1=Negligible to 5=Catastrophic (heuristic prioritization, not measurable impact)
+    impact: v.optional(
+      v.union(
+        v.literal(1),
+        v.literal(2),
+        v.literal(3),
+        v.literal(4),
+        v.literal(5),
+      ),
     ),
-    exposure: v.union(
-      v.literal(1),
-      v.literal(2),
-      v.literal(3),
-      v.literal(4),
-      v.literal(5),
+    // Exposure scale: 1=Minimal to 5=Widescale (heuristic prioritization, not exposure measurement)
+    exposure: v.optional(
+      v.union(
+        v.literal(1),
+        v.literal(2),
+        v.literal(3),
+        v.literal(4),
+        v.literal(5),
+      ),
     ),
-    inherentRiskScore: v.number(),
+    // Missing factor handling: if any factor is missing, inherentRiskScore must be null
+    inherentRiskScore: v.union(v.number(), v.null()),
     residualRiskScore: v.optional(v.number()),
+    residualRiskAssessment: v.optional(
+      v.union(
+        v.literal("NOT_ASSESSED"),
+        v.literal("PROVISIONAL"),
+        v.literal("ASSESSED"),
+      ),
+    ),
+    residualRiskEvidenceRefs: v.optional(
+      v.array(v.union(v.id("documents"), v.id("citizen_feedback"))),
+    ),
+    residualRiskAssessmentNotes: v.optional(v.string()),
     riskLevel: v.union(
       v.literal("low"),
       v.literal("medium"),
       v.literal("high"),
       v.literal("critical"),
+      v.literal("INSUFFICIENT_DATA"),
     ),
     status: v.union(
       v.literal("PENDING_REVIEW"),
@@ -334,7 +378,13 @@ export default defineSchema({
     ),
     auditTrail: v.array(
       v.object({
-        action: v.string(),
+        action: v.union(
+          v.literal("identified"),
+          v.literal("status_updated"),
+          v.literal("additional_evidence_requested"),
+          v.literal("residual_risk_assessed"),
+          v.literal("effectiveness_verified"),
+        ),
         performedBy: v.string(),
         performedAt: v.number(),
         notes: v.optional(v.string()),
@@ -362,19 +412,25 @@ export default defineSchema({
       v.literal("rejected"),
       v.literal("implemented"),
     ),
-    supportingEvidenceType: v.union(
-      v.literal("verified_fact"),
-      v.literal("reported_concern"),
-      v.literal("inferred_relationship"),
-      v.literal("unverified_hypothesis"),
+    supportingEvidenceType: v.optional(
+      v.union(
+        v.literal("verified_fact"),
+        v.literal("reported_concern"),
+        v.literal("inferred_relationship"),
+        v.literal("unverified_hypothesis"),
+      ),
     ),
-    supportingEvidenceRef: v.union(
-      v.id("documents"),
-      v.id("citizen_feedback"),
-      v.id("historical_evidence"),
+    supportingEvidenceRef: v.optional(
+      v.union(
+        v.id("documents"),
+        v.id("citizen_feedback"),
+        v.id("historical_evidence"),
+      ),
     ),
     supportingEvidencePassage: v.optional(v.string()),
     existingMitigationRef: v.optional(v.id("mitigations")),
+    // Coverage determination: true if project has implemented/existing mitigation for this category
+    // This reflects ACTUAL project coverage, not just template availability
     missingCoverage: v.boolean(),
     coverageReason: v.optional(v.string()),
     recommendationReason: v.string(),
@@ -384,12 +440,23 @@ export default defineSchema({
       v.literal("ASSESSED"),
     ),
     verifiedEffectivePercent: v.optional(v.number()),
+    // Assessment metadata - when present, indicates how the percentage was determined
+    // If absent, the percentage is a human-estimated assessment (PROVISIONAL)
+    assessmentBasis: v.optional(
+      v.object({
+        methodology: v.string(),
+        outcomeMetric: v.string(),
+        measurementPeriod: v.string(),
+        supportingEvidenceRef: v.union(
+          v.id("documents"),
+          v.id("citizen_feedback"),
+        ),
+        rationale: v.string(),
+      }),
+    ),
+    // implementationEvidenceRef: historical_evidence not allowed - can only be from same-project documents/feedback
     implementationEvidenceRef: v.optional(
-      v.union(
-        v.id("documents"),
-        v.id("citizen_feedback"),
-        v.id("historical_evidence"),
-      ),
+      v.union(v.id("documents"), v.id("citizen_feedback")),
     ),
     effectivenessEvidenceRef: v.optional(
       v.union(v.id("documents"), v.id("citizen_feedback")),
@@ -404,6 +471,7 @@ export default defineSchema({
           v.literal("approved"),
           v.literal("rejected"),
           v.literal("implemented"),
+          v.literal("effectiveness_verified"),
         ),
         performedBy: v.string(),
         performedAt: v.number(),
@@ -414,6 +482,53 @@ export default defineSchema({
     .index("by_risk", ["riskId"])
     .index("by_status", ["status"])
     .index("by_createdBy", ["createdBy"]),
+
+  // Residual risk assessments (Phase 7 - append-only history)
+  residual_risk_assessments: defineTable({
+    riskId: v.id("risks"),
+    assessmentState: v.union(
+      v.literal("NOT_ASSESSED"),
+      v.literal("PROVISIONAL"),
+      v.literal("ASSESSED"),
+    ),
+    residualRiskScore: v.optional(v.number()),
+    inherentRiskScore: v.union(v.number(), v.null()),
+    // Mitigation-related fields for audit trail and context
+    eligibleMitigationIds: v.optional(v.array(v.id("risk_mitigations"))),
+    mitigationEffectivenessSnapshots: v.optional(
+      v.array(
+        v.object({
+          mitigationId: v.id("risk_mitigations"),
+          verifiedEffectivePercent: v.number(),
+          effectivenessEvidenceRef: v.optional(
+            v.union(v.id("documents"), v.id("citizen_feedback")),
+          ),
+          implementationEvidenceRef: v.optional(
+            v.union(v.id("documents"), v.id("citizen_feedback")),
+          ),
+        }),
+      ),
+    ),
+    evidenceRefs: v.optional(
+      v.array(v.union(v.id("documents"), v.id("citizen_feedback"))),
+    ),
+    assessmentNotes: v.optional(v.string()),
+    assessedBy: v.string(),
+    assessedAt: v.number(),
+  })
+    .index("by_risk", ["riskId"])
+    .index("by_assessed_at", ["assessedAt"]),
+
+  // Evidence verifications - explicit human verification of evidence
+  // Processing completion does not equal factual verification
+  evidence_verifications: defineTable({
+    evidenceRef: v.union(v.id("documents"), v.id("citizen_feedback")),
+    verifiedBy: v.string(),
+    verifiedAt: v.number(),
+    verificationNotes: v.optional(v.string()),
+  })
+    .index("by_evidence", ["evidenceRef"])
+    .index("by_verified_at", ["verifiedAt"]),
 
   // Knowledge graph entities (Phase 4)
   graph_entities: defineTable({
