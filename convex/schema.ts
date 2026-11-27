@@ -208,6 +208,7 @@ export default defineSchema({
 
   // Mitigations table
   mitigations: defineTable({
+    projectId: v.optional(v.id("projects")),
     category: v.union(
       v.literal("environmental"),
       v.literal("social"),
@@ -219,7 +220,200 @@ export default defineSchema({
     description: v.string(),
     standard: v.optional(v.boolean()),
     references: v.optional(v.array(v.string())),
-  }).index("by_category", ["category"]),
+  })
+    .index("by_category", ["category"])
+    .index("by_project", ["projectId"]),
+
+  // Evidence items table - tracks multiple evidence per risk
+  evidence_items: defineTable({
+    riskId: v.id("risks"),
+    evidenceType: v.union(
+      v.literal("DOCUMENTED"),
+      v.literal("CITIZEN_VOICE"),
+      v.literal("PATTERN_INFERRED"),
+      v.literal("HISTORICAL_ANALOG"),
+    ),
+    evidenceRef: v.union(
+      v.id("documents"),
+      v.id("citizen_feedback"),
+      v.id("historical_evidence"),
+    ),
+    sourceEvidenceType: v.union(
+      v.literal("verified_fact"),
+      v.literal("reported_concern"),
+      v.literal("inferred_relationship"),
+      v.literal("unverified_hypothesis"),
+    ),
+    relevance: v.union(v.literal("primary"), v.literal("supporting")),
+    evidenceStrength: v.union(v.literal("verified"), v.literal("unverified")),
+    verificationStatus: v.union(v.literal("verified"), v.literal("unverified")),
+    sourcePassage: v.optional(v.string()),
+    addedBy: v.string(),
+    addedAt: v.number(),
+  })
+    .index("by_risk", ["riskId"])
+    .index("by_evidence_type", ["evidenceType"])
+    .index("by_verification", ["verificationStatus"]),
+
+  // Risk assessment scales (1-5)
+  risk_scales: defineTable({
+    projectId: v.id("projects"),
+    likelihood: v.union(
+      v.literal(1),
+      v.literal(2),
+      v.literal(3),
+      v.literal(4),
+      v.literal(5),
+    ),
+    impact: v.union(
+      v.literal(1),
+      v.literal(2),
+      v.literal(3),
+      v.literal(4),
+      v.literal(5),
+    ),
+    exposure: v.union(
+      v.literal(1),
+      v.literal(2),
+      v.literal(3),
+      v.literal(4),
+      v.literal(5),
+    ),
+    inherentRiskScore: v.number(),
+  }).index("by_project", ["projectId"]),
+
+  // Risks table (Phase 5 - Risk Analysis Engine)
+  risks: defineTable({
+    projectId: v.id("projects"),
+    entityId: v.optional(v.id("graph_entities")),
+    stakeholderId: v.optional(v.id("graph_entities")),
+    locationId: v.optional(v.id("graph_entities")),
+    title: v.string(),
+    description: v.string(),
+    category: v.union(
+      v.literal("environmental"),
+      v.literal("social"),
+      v.literal("technical"),
+      v.literal("financial"),
+      v.literal("legal"),
+    ),
+    likelihood: v.union(
+      v.literal(1),
+      v.literal(2),
+      v.literal(3),
+      v.literal(4),
+      v.literal(5),
+    ),
+    impact: v.union(
+      v.literal(1),
+      v.literal(2),
+      v.literal(3),
+      v.literal(4),
+      v.literal(5),
+    ),
+    exposure: v.union(
+      v.literal(1),
+      v.literal(2),
+      v.literal(3),
+      v.literal(4),
+      v.literal(5),
+    ),
+    inherentRiskScore: v.number(),
+    residualRiskScore: v.optional(v.number()),
+    riskLevel: v.union(
+      v.literal("low"),
+      v.literal("medium"),
+      v.literal("high"),
+      v.literal("critical"),
+    ),
+    status: v.union(
+      v.literal("PENDING_REVIEW"),
+      v.literal("ACCEPTED"),
+      v.literal("REJECTED"),
+      v.literal("UNRESOLVED"),
+    ),
+    auditTrail: v.array(
+      v.object({
+        action: v.string(),
+        performedBy: v.string(),
+        performedAt: v.number(),
+        notes: v.optional(v.string()),
+        previousValue: v.optional(v.string()),
+        newValue: v.optional(v.string()),
+      }),
+    ),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_category", ["category"])
+    .index("by_status", ["status"])
+    .index("by_riskLevel", ["riskLevel"])
+    .index("by_createdBy", ["createdBy"]),
+
+  // Risk mitigations table (candidate mitigations with review workflow)
+  risk_mitigations: defineTable({
+    riskId: v.id("risks"),
+    description: v.string(),
+    status: v.union(
+      v.literal("proposed"),
+      v.literal("approved"),
+      v.literal("rejected"),
+      v.literal("implemented"),
+    ),
+    supportingEvidenceType: v.union(
+      v.literal("verified_fact"),
+      v.literal("reported_concern"),
+      v.literal("inferred_relationship"),
+      v.literal("unverified_hypothesis"),
+    ),
+    supportingEvidenceRef: v.union(
+      v.id("documents"),
+      v.id("citizen_feedback"),
+      v.id("historical_evidence"),
+    ),
+    supportingEvidencePassage: v.optional(v.string()),
+    existingMitigationRef: v.optional(v.id("mitigations")),
+    missingCoverage: v.boolean(),
+    coverageReason: v.optional(v.string()),
+    recommendationReason: v.string(),
+    effectivenessLevel: v.union(
+      v.literal("NOT_ASSESSED"),
+      v.literal("PROVISIONAL"),
+      v.literal("ASSESSED"),
+    ),
+    verifiedEffectivePercent: v.optional(v.number()),
+    implementationEvidenceRef: v.optional(
+      v.union(
+        v.id("documents"),
+        v.id("citizen_feedback"),
+        v.id("historical_evidence"),
+      ),
+    ),
+    effectivenessEvidenceRef: v.optional(
+      v.union(v.id("documents"), v.id("citizen_feedback")),
+    ),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    reviewHistory: v.array(
+      v.object({
+        action: v.union(
+          v.literal("proposed"),
+          v.literal("approved"),
+          v.literal("rejected"),
+          v.literal("implemented"),
+        ),
+        performedBy: v.string(),
+        performedAt: v.number(),
+        notes: v.optional(v.string()),
+      }),
+    ),
+  })
+    .index("by_risk", ["riskId"])
+    .index("by_status", ["status"])
+    .index("by_createdBy", ["createdBy"]),
 
   // Knowledge graph entities (Phase 4)
   graph_entities: defineTable({

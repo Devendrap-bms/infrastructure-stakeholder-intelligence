@@ -1,8 +1,8 @@
 # Implementation Roadmap
 
 **Project:** Knowledge-Driven Stakeholder Analysis and Risk Intelligence for Infrastructure Planning
-**Last Updated:** 2026-11-26
-**Status:** Prompts 4-6 complete, awaiting approval for Prompt 7
+**Last Updated:** 2026-11-27
+**Status:** Prompts 4-7 complete, Prompt 8-9 pending
 
 ---
 
@@ -25,10 +25,10 @@
 | 2 | Data Ingestion Infrastructure | Dev 1, Dev 2 | Lucky (UI prep only) | Mixed | ✅ Complete |
 | 3 | ML Service Core | Dev 2 | Dev 1 (contracts) | ML | 🔄 Pending |
 | 4 | Knowledge Graph Implementation | Dev 1 | Dev 2 (datasets) | Backend | ✅ Complete |
-| 5 | Risk Analysis Engine | Dev 1 | — | Backend | ⏳ Not started |
-| 6 | Backend Integration | Dev 1, Dev 2 | Lucky (frontend consumption) | Mixed | ⏳ Not started |
+| 5 | Risk Analysis Engine | Dev 1 | — | Backend | ✅ Complete |
+| 6 | Backend Integration | Dev 1, Dev 2 | Lucky (frontend consumption) | Mixed | ⏳ In progress |
 | 7 | MVP Frontend | Dev 3 | Dev 1, Dev 2 (support) | Frontend | ⏳ Not started |
-| 8 | Testing | All | — | Testing | 🔄 In progress |
+| 8 | Testing & Hardening | All | — | Testing | 🔄 In progress |
 | 9 | Documentation & Handoff | All | — | Documentation | ⏳ Not started |
 
 **Total estimated: 9 weeks from Phase 1 start (Phase 1-2 complete, 7 weeks remaining)**
@@ -44,8 +44,8 @@
 | M2: Data Pipeline Ready | Week 3 | ✅ Done | Dev 1, Dev 2 |
 | M3: ML Service Ready | Week 4 | ⏳ Not started | Dev 2 |
 | M4: Knowledge Base Ready | Week 6 | ✅ Done | Dev 1 |
-| M5: Risk Engine Working | Week 7 | ⏳ Not started | Dev 1 |
-| M6: API Stable | Week 8 | ⏳ Not started | Dev 1, Dev 2 |
+| M5: Risk Engine Working | Week 7 | ✅ Done | Dev 1 |
+| M6: API Stable | Week 8 | ⏳ In progress | Dev 1, Dev 2 |
 | M7: MVP Frontend Done | Week 10 | ⏳ Not started | Dev 3 |
 | M8: Integration Verified | Week 11 | ⏳ Not started | All |
 | M9: Release Ready | Week 12 | ⏳ Not started | All |
@@ -123,34 +123,54 @@
 
 ---
 
-### Phase 5: Risk Analysis Engine (Week 5-7) ⏳ Not Started
+### Phase 5: Risk Analysis Engine (Week 5-7) ✅ Complete (with limitations)
 **Primary Owner: Developer 1 (Coordinator)**
 
 | Task | Owner | Deliverable | Status |
 |------|-------|-------------|--------|
-| Mitigation coverage matrix | Dev 1 | `mitigations` table | ✅ Created (no engine) |
-| Risk scoring algorithm | Dev 1 | `priorityScore` calculation | ⏳ Not started |
-| Risk prioritization | Dev 1 | Ranking logic | ⏳ Not started |
+| Risk identification | Dev 1 | Evidence-grounded risk creation with likelihood/impact/exposure scales | ✅ Implemented |
+| Risk evidence traceability | Dev 1 | Documents, feedback, historical evidence with provenance | ✅ Implemented |
+| Multiple evidence support | Dev 1 | Separate evidence_items table for multiple evidence per risk | ✅ Implemented |
+| Inherent Risk Score calculation | Dev 1 | Likelihood × Impact × Exposure formula | ✅ Implemented |
+| Risk level classification | Dev 1 | LOW/MEDIUM/HIGH/CRITICAL from score thresholds | ✅ Implemented |
+| Risk status lifecycle | Dev 1 | PENDING_REVIEW/ACCEPTED/REJECTED/UNRESOLVED with transitions | ✅ Implemented |
+| Audit trail | Dev 1 | Full change history with previous/new values | ✅ Implemented |
+| Mitigation suggestion engine | Dev 1 | Candidate mitigations from templates | ✅ Implemented |
+| Mitigation effectiveness | Dev 1 | NOT_ASSESSED/PROVISIONAL/ASSESSED with percentage | ✅ Implemented |
+| Multiple mitigation combination | Dev 1 | Weighted combination avoiding double-counting | ⚠️ Implementation (formula in tests but not used in production) |
+| Human review workflow | Dev 1 | Accept/reject/edit risks and mitigations | ✅ Implemented |
+| Explainable risk scoring | Dev 1 | Transparent heuristic scoring | ✅ Implemented |
+| Security validation | Dev 1 | Project-level authz, role-based permissions | ✅ Implemented |
+
+**Files:** `convex/schema.ts`, `convex/risk.ts`, `convex/risk.test.ts`
+
+**Test Results:** 74 tests pass covering likelihood/impact/exposure combinations, evidence traceability, risk workflow, mitigation lifecycle, and authorization rules
+
+**Known Limitations:**
+- `confidence` field removed from schema (was always 0 with no defensible calculation)
+- `residualRiskScore` not auto-calculated (requires verified mitigations)
+- Multiple mitigation combination formula exists in tests but not used in production scoring
+- Historical evidence safeguards require documentation and additional test coverage
 
 ---
 
-### Phase 6: Backend Integration (Week 6-8) ⏳ Not Started
+### Phase 6: Backend Integration (Week 6-8) 🔄 In Progress
 **Primary Owner: Developer 1 (Coordinator) and Developer 2 (Akshay)**
 
 | Task | Owner | Deliverable | Status |
 |------|-------|-------------|--------|
-| Backend API contracts | Dev 1 | SHARED_CONTRACTS.md v1.0 | ✅ Done |
+| Backend API contracts | Dev 1 | SHARED_CONTRACTS.md v2.0 | ✅ Done |
 | ML inference service integration | Dev 2 | FastAPI endpoints | ⏳ Not started |
 | Frontend API consumption | Dev 3 | Client hooks | ⏳ Not started (waiting on Phase 7) |
 
-**Dependencies:** Phase 5 (risk engine) - waiting to start
+**Dependencies:** Phase 5 (risk engine) ✅ Complete
 
 ---
 
 ### Phase 7: MVP Frontend Implementation (Week 8-10) ⏳ Not Started
 **Primary Owner: Developer 3 (Lucky)**
 
-**Status:** Awaiting approved API contracts and Risk Engine
+**Status:** Risk Engine implementation complete with known limitations documented. API contracts updated in SHARED_CONTRACTS.md v2.0. Awaiting ML integration for full functionality.
 
 | Task | Owner | Deliverable | Status |
 |------|-------|-------------|--------|
@@ -160,16 +180,17 @@
 | Document upload interface | Dev 3 | Drag + drop | ⏳ Not started |
 | Feedback submission form | Dev 3 | Multilingual form | ⏳ Not started |
 
-**Dependencies:** Phase 6 (API contracts) - not started yet
+**Dependencies:** Phase 6 (API contracts) ✅ Complete for Phase 7
 
 ---
 
-### Phase 8: End-to-End Testing (Week 10-11) ⏳ Not Started
+### Phase 8: End-to-End Testing (Week 10-11) 🔄 In Progress
 **Primary Owner: All Developers**
 
 | Task | Status |
 |------|--------|
-| Backend unit tests | ✅ 135 tests pass |
+| Backend unit tests | ✅ 209 tests pass (135 existing + 74 new risk tests) |
+| Risk engine validation tests | ⏳ In progress (need to add residual risk and historical evidence tests) |
 | ML service unit tests | ⏳ Not started |
 | Frontend unit tests | ⏳ Not started |
 | E2E tests (user flows) | ⏳ Not started |
@@ -178,13 +199,13 @@
 ---
 
 ### Phase 9: Documentation & Handoff (Week 11-12) ⏳ Not Started
-**Status:** Currently updating documentation
+**Status:** SHARED_CONTRACTS.md v2.0 updated, IMPLEMENTATION_ROADMAP.md updated. Awaiting Prompt 7 final verification.
 
 | Task | Status |
 |------|--------|
-| Update docs with Phase 1-6 learnings | ✅ In progress |
+| Update docs with Phase 1-7 learnings | ✅ COMPLETE |
 | Deployment guide | ⏳ Not started |
-| API documentation | ✅ SHARED_CONTRACTS.md v1.0 |
+| API documentation | ✅ SHARED_CONTRACTS.md v2.0 |
 | Handoff checklist | ⏳ Not started |
 | Bug fixes and polish | ⏳ Not started |
 
@@ -202,7 +223,7 @@ Dev 1 (Backend)                Dev 2 (ML)                   Dev 3 (Frontend/Luck
                                   ├── Models (mBERT, XLM-R)     │
                                   └── Endpoints                 │
                                                     │           │
-                                                    M6/M7 ⏳     │
+                                                    M6 ⏳        │
                                                     └── Frontend│
                                                               ⏳
 ```
@@ -217,6 +238,6 @@ Dev 1 (Backend)                Dev 2 (ML)                   Dev 3 (Frontend/Luck
 - **No overlap in core ownership** - boundaries are firm
 - **All phases assume free/open-source only**
 
-**Current Status:** Prompts 4-6 complete (authentication, documents, feedback, knowledge graph). 135 unit tests pass. Build verified (6 pages). Convex functions ready (8.92s).
+**Current Status:** Prompts 4-7 complete (authentication, documents, feedback, knowledge graph, risk engine). 209 unit tests pass. Build verified (6 pages). Convex functions ready.
 
-**Next Step:** Awaiting approval for Prompt 7 (Risk Analysis Engine).
+**Next Step:** Prompt 8 (ML Service Integration) - awaiting approval to start after Prompt 7 verification and additional tests.
